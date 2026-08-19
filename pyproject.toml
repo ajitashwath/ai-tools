@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aidev"
+version = "0.1.0"
+description = "AI DevTools - local-first AI debugging and experimentation platform"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.27.0",
+    "sqlite-utils>=4.0.0",
+    "pydantic>=2.7.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+aidev = "aidev.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["aidev*"]
