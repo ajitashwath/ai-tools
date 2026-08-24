@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -123,7 +124,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if msg == "get_spans":
                 s = get_storage()
                 spans = s.get_root_spans()
-                ws_data = [_span_to_info(si) for si in spans]
+                ws_data = [_span_to_info(si).model_dump() for si in spans]
                 await websocket.send_json({"type": "spans_update", "spans": ws_data})
     except WebSocketDisconnect:
         pass
@@ -161,3 +162,20 @@ async def add_cors_headers(request, call_next):
     response = await call_next(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
+
+
+# --- Serve built UI from ui/dist (no Node required at runtime) ---
+
+_dist_dir = Path(__file__).resolve().parent.parent / "ui" / "dist"
+
+if _dist_dir.exists():
+    assets_dir = _dist_dir / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_ui(full_path: str):
+        candidate = (_dist_dir / full_path).resolve()
+        if full_path and candidate.is_file() and str(candidate).startswith(str(_dist_dir)):
+            return FileResponse(candidate)
+        return FileResponse(_dist_dir / "index.html")

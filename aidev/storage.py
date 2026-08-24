@@ -21,7 +21,7 @@ class TraceSQLite:
         db_dir = os.path.dirname(os.path.abspath(self.db_path))
         if db_dir:
             os.makedirs(db_dir, exist_ok=True)
-        self._conn = sqlite3.connect(self.db_path)
+        self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.execute(
             """
             CREATE TABLE IF NOT EXISTS spans (

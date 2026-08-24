@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -38,7 +39,7 @@ def serve():
     import uvicorn
     from aidev.server import app as fastapi_app
 
-    uvicorn.run(fastapi_app, host="0.0.0.0", port=8000)
+    uvicorn.run(fastapi_app, host="127.0.0.1", port=18003)
 
 
 @cli.command()
@@ -345,5 +346,4 @@ def sandbox(repo_path: str, task: str, model: str, starting_commit: str = "HEAD"
 if __name__ == "__main__":
     cli()
 
-if __name__ == '__main__':
-    cli()
+main = cli
