@@ -1,13 +1,10 @@
 # AI DevTools
-
 Local-first AI debugging and experimentation platform. Make AI systems as inspectable as web applications are through browser DevTools.
 
 ## Core Loop
-
 **RUN → INSPECT → UNDERSTAND → REPLAY → MODIFY → COMPARE → IMPROVE**
 
 ## Philosophy
-
 - **Local-first**: Everything runs on one developer device. No Kafka, Kubernetes, Redis, or PostgreSQL.
 - **Provider-agnostic**: Works with OpenAI, Ollama, local models/subprocesses. Never hard-coded around a single provider.
 - **Provider failure does not prevent startup**: Core application works without any provider.
@@ -113,29 +110,3 @@ E:\ai-tools\
 ├── traces.db                   # Auto-created SQLite database
 └── README.md                   # This file
 ```
-
-## Development Priority (per spec)
-
-1. ✅ Repository assessment - Done
-2. ✅ Minimal SDK + tracing - Done
-3. ✅ SQLite persistence - Done
-4. ✅ FastAPI API - Done
-5. ✅ React trace UI - Done
-6. ✅ Rich trace metadata - Done
-7. ✅ Live WebSocket updates - Done
-8. ✅ Context/model inspection - Done
-9. ✅ Replay - Done
-10. ✅ Run comparison - Done
-11. ✅ Coding-agent sandbox - Done
-12. ✅ Agent execution graph - Done
-13. ✅ Real benchmarks - Done
-14. ✅ Deterministic diagnostics - Done
-15. ✅ Model arena - Done
-16. ✅ Model routing - Done
-17. ⏳ Local AI diagnosis - Done
-18. ⏳ Performance optimization - Done
-19. ⏳ Documentation/polish - Done
-
-## License
-
-MIT License. See LICENSE for details.
