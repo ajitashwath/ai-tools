@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+
+const API_BASE = "http://127.0.0.1:18003";
 
 interface SpanInfo {
   id: string;
@@ -15,6 +17,10 @@ interface SpanInfo {
   model: string | null;
   model_token_count: number | null;
   operation: string | null;
+  ttft: number | null;
+  tokens_per_sec: number | null;
+  stop_reason: string | null;
+  total_tokens: number | null;
 }
 
 export default function TraceDetailPage() {
@@ -26,7 +32,7 @@ export default function TraceDetailPage() {
     if (!id) return;
 
     // Fetch span from API
-    fetch(`http://localhost:18003/api/spans/${id}`)
+    fetch(`${API_BASE}/api/spans/${id}`)
       .then((resp) => resp.json())
       .then((data: SpanInfo) => {
         setSpan(data);
@@ -52,6 +58,7 @@ export default function TraceDetailPage() {
 
   return (
     <div className="trace-detail">
+      <Link className="back-link" to="/">← All traces</Link>
       <h1>{span.name}</h1>
 
       <div className="trace-meta">
@@ -78,6 +85,18 @@ export default function TraceDetailPage() {
         <div>
           <span className="key">Operation</span>
           <span>{span.operation || "—"}</span>
+        </div>
+        <div>
+          <span className="key">TTFT</span>
+          <span>{span.ttft !== null ? `${span.ttft.toFixed(2)}s` : "—"}</span>
+        </div>
+        <div>
+          <span className="key">Throughput</span>
+          <span>{span.tokens_per_sec !== null ? `${span.tokens_per_sec.toFixed(1)} tok/s` : "—"}</span>
+        </div>
+        <div>
+          <span className="key">Total tokens</span>
+          <span>{span.total_tokens ?? "—"}</span>
         </div>
       </div>
 

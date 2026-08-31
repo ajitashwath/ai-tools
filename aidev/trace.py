@@ -117,6 +117,10 @@ class Tracer:
         def set_total_tokens(self, total_tokens: int) -> None:
             self._span.total_tokens = total_tokens
 
+        def set_outputs(self, outputs: Any) -> None:
+            """Attach the result produced by this span."""
+            self._span.outputs = outputs
+
         # Delegate span attributes for convenience
         @property
         def id(self) -> str:

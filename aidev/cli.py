@@ -1,5 +1,3 @@
-"""CLI for AI DevTools."""
-
 from __future__ import annotations
 
 import os
@@ -11,7 +9,7 @@ from pathlib import Path
 
 import click
 
-from aidev.trace import trace
+from aidev.trace import Tracer
 from aidev.storage import TraceSQLite
 
 
@@ -29,8 +27,13 @@ def trace(name: str):
     Example: aidev trace my_agent
     """
     click.echo(f"Starting trace: {name}")
-    with trace(name) as t:
-        click.echo(f"Trace started: {t.id}")
+    storage = TraceSQLite("traces.db")
+    tracer = Tracer(storage=storage)
+    try:
+        with tracer.trace(name) as t:
+            click.echo(f"Trace started: {t.id}")
+    finally:
+        storage.close()
 
 
 @cli.command()

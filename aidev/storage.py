@@ -87,6 +87,14 @@ class TraceSQLite:
         for span in spans:
             self.save(span)
 
+    def delete_spans(self, span_ids: List[str]) -> None:
+        """Delete the explicitly supplied spans."""
+        if not span_ids:
+            return
+        placeholders = ", ".join("?" for _ in span_ids)
+        self._conn.execute(f"DELETE FROM spans WHERE id IN ({placeholders})", span_ids)
+        self._conn.commit()
+
     def get_by_id(self, span_id: str) -> Optional[Span]:
         """Retrieve a span by ID."""
         row = self._conn.execute(
@@ -119,6 +127,34 @@ class TraceSQLite:
         """Retrieve all root spans (no parent)."""
         rows = self._conn.execute(
             "SELECT id, name, parent_id, start_time, end_time, status, metadata, errors, inputs, outputs, model, model_token_count, operation, ttft, tokens_per_sec, stop_reason, total_tokens FROM spans WHERE parent_id IS NULL ORDER BY start_time"
+        ).fetchall()
+        return [
+            Span(
+                id=row[0],
+                name=row[1],
+                parent_id=row[2],
+                start_time=row[3],
+                end_time=row[4],
+                status=SpanStatus(row[5]),
+                metadata=json.loads(row[6]) if row[6] else {},
+                errors=json.loads(row[7]) if row[7] else [],
+                inputs=json.loads(row[8]) if row[8] else None,
+                outputs=json.loads(row[9]) if row[9] else None,
+                model=row[10],
+                model_token_count=row[11],
+                operation=row[12],
+                ttft=row[13],
+                tokens_per_sec=row[14],
+                stop_reason=row[15],
+                total_tokens=row[16],
+            )
+            for row in rows
+        ]
+
+    def get_all_spans(self) -> List[Span]:
+        """Retrieve every span ordered by start time."""
+        rows = self._conn.execute(
+            "SELECT id, name, parent_id, start_time, end_time, status, metadata, errors, inputs, outputs, model, model_token_count, operation, ttft, tokens_per_sec, stop_reason, total_tokens FROM spans ORDER BY start_time"
         ).fetchall()
         return [
             Span(

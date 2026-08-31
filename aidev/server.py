@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -33,6 +34,10 @@ class SpanInfo(BaseModel):
     model: Optional[str] = None
     model_token_count: Optional[int] = None
     operation: Optional[str] = None
+    ttft: Optional[float] = None
+    tokens_per_sec: Optional[float] = None
+    stop_reason: Optional[str] = None
+    total_tokens: Optional[int] = None
 
 
 class NewSpan(BaseModel):
@@ -49,7 +54,7 @@ storage: Optional[TraceSQLite] = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global storage
-    storage = TraceSQLite("traces.db")
+    storage = TraceSQLite(os.environ.get("AIDEV_DB_PATH", "traces.db"))
     yield
     storage.close()
 
@@ -86,7 +91,7 @@ def get_storage() -> TraceSQLite:
 def list_spans():
     """List all spans sorted by start time."""
     s = get_storage()
-    spans = s.get_root_spans()
+    spans = s.get_all_spans()
     return [_span_to_info(si) for si in spans]
 
 
@@ -123,7 +128,7 @@ async def websocket_endpoint(websocket: WebSocket):
             msg = await websocket.receive_text()
             if msg == "get_spans":
                 s = get_storage()
-                spans = s.get_root_spans()
+                spans = s.get_all_spans()
                 ws_data = [_span_to_info(si).model_dump() for si in spans]
                 await websocket.send_json({"type": "spans_update", "spans": ws_data})
     except WebSocketDisconnect:
@@ -151,7 +156,11 @@ def _span_to_info(span: Span) -> SpanInfo:
         outputs=span.outputs,
         model=span.model,
         model_token_count=span.model_token_count,
-        operation=span.operation,
+                operation=span.operation,
+        ttft=span.ttft,
+        tokens_per_sec=span.tokens_per_sec,
+        stop_reason=span.stop_reason,
+        total_tokens=span.total_tokens,
     )
 
 
