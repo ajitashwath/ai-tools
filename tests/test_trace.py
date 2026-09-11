@@ -28,7 +28,9 @@ def test_trace_captures_exception_as_error():
 
 def test_nested_span_sets_parent_id():
     tracer = Tracer()
-    with tracer.trace("outer") as outer:
+    # Nested (not combined): span() reads the stack at call time, so the
+    # parent trace must already be entered.
+    with tracer.trace("outer") as outer:  # noqa: SIM117
         with tracer.span("inner") as inner:
             assert inner.parent_id == outer.id
     assert tracer.root_spans == [tracer.spans[0]]

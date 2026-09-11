@@ -10,7 +10,6 @@ black-box recommendations.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 from aidev.trace import Span, SpanStatus
 
@@ -21,16 +20,16 @@ class PerformanceBenchmark:
 
     model_name: str
     total_runs: int
-    avg_latency_s: Optional[float] = None
-    avg_ttft_s: Optional[float] = None
-    avg_tokens_per_sec: Optional[float] = None
-    total_tokens: Optional[int] = None
-    min_latency_s: Optional[float] = None
-    max_latency_s: Optional[float] = None
-    p95_latency_s: Optional[float] = None
+    avg_latency_s: float | None = None
+    avg_ttft_s: float | None = None
+    avg_tokens_per_sec: float | None = None
+    total_tokens: int | None = None
+    min_latency_s: float | None = None
+    max_latency_s: float | None = None
+    p95_latency_s: float | None = None
     error_count: int = 0
     success_count: int = 0
-    cost_estimate: Optional[float] = None
+    cost_estimate: float | None = None
 
 
 @dataclass
@@ -41,7 +40,7 @@ class OptimizationRecommendation:
     priority: str  # "high", "medium", "low"
     description: str
     expected_improvement: str  # e.g., "reduce latency by 20%"
-    actionable_steps: List[str]
+    actionable_steps: list[str]
 
 
 class PerformanceOptimizer:
@@ -51,9 +50,7 @@ class PerformanceOptimizer:
     actionable optimization recommendations based on engineering data.
     """
 
-    def benchmark(
-        self, spans: List[Span], model_name: Optional[str] = None
-    ) -> PerformanceBenchmark:
+    def benchmark(self, spans: list[Span], model_name: str | None = None) -> PerformanceBenchmark:
         """Compute performance benchmark from a list of spans.
 
         Args:
@@ -67,14 +64,14 @@ class PerformanceOptimizer:
             return PerformanceBenchmark(model_name=model_name or "unknown", total_runs=0)
 
         total_runs = len(spans)
-        latencies: List[float] = []
-        ttfts: List[float] = []
-        tokens_per_secs: List[float] = []
+        latencies: list[float] = []
+        ttfts: list[float] = []
+        tokens_per_secs: list[float] = []
         total_tokens = 0
         error_count = 0
         success_count = 0
-        min_latency: Optional[float] = None
-        max_latency: Optional[float] = None
+        min_latency: float | None = None
+        max_latency: float | None = None
 
         for span in spans:
             # Collect latencies (end - start)
@@ -132,7 +129,7 @@ class PerformanceOptimizer:
             success_count=success_count,
         )
 
-    def optimize(self, benchmark: PerformanceBenchmark) -> List[OptimizationRecommendation]:
+    def optimize(self, benchmark: PerformanceBenchmark) -> list[OptimizationRecommendation]:
         """Generate optimization recommendations based on benchmark results.
 
         Returns a list of prioritized, actionable optimization recommendations
@@ -144,7 +141,7 @@ class PerformanceOptimizer:
         Returns:
             List of optimization recommendations, sorted by priority
         """
-        recommendations: List[OptimizationRecommendation] = []
+        recommendations: list[OptimizationRecommendation] = []
 
         # Latency optimizations
         if benchmark.avg_latency_s is not None and benchmark.avg_latency_s > 1.0:

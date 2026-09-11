@@ -63,7 +63,9 @@ def test_get_by_id_missing_returns_none(db):
 
 def test_root_spans_children_and_all(db):
     tracer = Tracer(storage=db)
-    with tracer.trace("root-a"):
+    # Nested (not combined): span() reads the stack at call time, so the
+    # parent trace must already be entered.
+    with tracer.trace("root-a"):  # noqa: SIM117
         with tracer.span("child-a1"):
             pass
     with tracer.trace("root-b"):

@@ -6,7 +6,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, Dict, List
+from typing import Any
 
 
 class SpanStatus(Enum):
@@ -18,32 +18,32 @@ class SpanStatus(Enum):
 class Span:
     id: str
     name: str
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     start_time: float = 0.0
     end_time: float = 0.0
     status: SpanStatus = SpanStatus.OK
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    errors: List[str] = field(default_factory=list)
-    inputs: Optional[Any] = None
-    outputs: Optional[Any] = None
-    model: Optional[str] = None
-    model_token_count: Optional[int] = None
-    operation: Optional[str] = None
-    ttft: Optional[float] = None  # Time To First Token
-    tokens_per_sec: Optional[float] = None
-    stop_reason: Optional[str] = None
-    total_tokens: Optional[int] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    inputs: Any | None = None
+    outputs: Any | None = None
+    model: str | None = None
+    model_token_count: int | None = None
+    operation: str | None = None
+    ttft: float | None = None  # Time To First Token
+    tokens_per_sec: float | None = None
+    stop_reason: str | None = None
+    total_tokens: int | None = None
 
 
 class Tracer:
     """Simple tracer with SQLite persistence support."""
 
     def __init__(self, storage=None):
-        self._spans: List[Span] = []
-        self._span_stack: List[Span] = []
+        self._spans: list[Span] = []
+        self._span_stack: list[Span] = []
         self._storage = storage
 
-    def trace(self, name: str, inputs: Optional[Any] = None) -> "Tracer.SpanContext":
+    def trace(self, name: str, inputs: Any | None = None) -> Tracer.SpanContext:
         """Start a new trace span."""
         span_id = f"span-{uuid.uuid4()}"
         span = Span(
@@ -66,7 +66,7 @@ class Tracer:
         The span is flushed to storage on context exit.
         """
 
-        def __init__(self, tracer: "Tracer", span: Span):
+        def __init__(self, tracer: Tracer, span: Span):
             self._tracer = tracer
             self._span = span
 
@@ -87,7 +87,7 @@ class Tracer:
         def set_metadata(self, key: str, value: Any) -> None:
             self._span.metadata[key] = value
 
-        def set_model(self, model: str, token_count: Optional[int] = None) -> None:
+        def set_model(self, model: str, token_count: int | None = None) -> None:
             self._span.model = model
             self._span.model_token_count = token_count
 
@@ -128,7 +128,7 @@ class Tracer:
             return self._span.name
 
         @property
-        def parent_id(self) -> Optional[str]:
+        def parent_id(self) -> str | None:
             return self._span.parent_id
 
         @property
@@ -144,50 +144,50 @@ class Tracer:
             return self._span.status
 
         @property
-        def metadata(self) -> Dict[str, Any]:
+        def metadata(self) -> dict[str, Any]:
             return self._span.metadata
 
         @property
-        def errors(self) -> List[str]:
+        def errors(self) -> list[str]:
             return self._span.errors
 
         @property
-        def inputs(self) -> Optional[Any]:
+        def inputs(self) -> Any | None:
             return self._span.inputs
 
         @property
-        def outputs(self) -> Optional[Any]:
+        def outputs(self) -> Any | None:
             return self._span.outputs
 
         @property
-        def model(self) -> Optional[str]:
+        def model(self) -> str | None:
             return self._span.model
 
         @property
-        def model_token_count(self) -> Optional[int]:
+        def model_token_count(self) -> int | None:
             return self._span.model_token_count
 
         @property
-        def operation(self) -> Optional[str]:
+        def operation(self) -> str | None:
             return self._span.operation
 
         @property
-        def ttft(self) -> Optional[float]:
+        def ttft(self) -> float | None:
             return self._span.ttft
 
         @property
-        def tokens_per_sec(self) -> Optional[float]:
+        def tokens_per_sec(self) -> float | None:
             return self._span.tokens_per_sec
 
         @property
-        def stop_reason(self) -> Optional[str]:
+        def stop_reason(self) -> str | None:
             return self._span.stop_reason
 
         @property
-        def total_tokens(self) -> Optional[int]:
+        def total_tokens(self) -> int | None:
             return self._span.total_tokens
 
-    def span(self, name: str, parent_id: Optional[str] = None) -> "Tracer.SpanContext":
+    def span(self, name: str, parent_id: str | None = None) -> Tracer.SpanContext:
         """Create a child span with a parent relationship."""
         parent = self._span_stack[-1] if self._span_stack else None
         span_id = f"span-{uuid.uuid4()}"
@@ -204,11 +204,11 @@ class Tracer:
         return Tracer.SpanContext(self, span)
 
     @property
-    def spans(self) -> List[Span]:
+    def spans(self) -> list[Span]:
         return list(self._spans)
 
     @property
-    def root_spans(self) -> List[Span]:
+    def root_spans(self) -> list[Span]:
         """Return spans that have no parent."""
         return [s for s in self._spans if s.parent_id is None]
 
@@ -228,10 +228,10 @@ class Tracer:
         return False
 
 
-def trace(name: str, inputs: Optional[Any] = None):
+def trace(name: str, inputs: Any | None = None):
     """Convenience function: `with trace("agent"): run_agent()`"""
     tracer = Tracer()
     return tracer.trace(name, inputs)
 
 
-__all__ = ["trace", "Tracer", "Span", "SpanStatus"]
+__all__ = ["Span", "SpanStatus", "Tracer", "trace"]

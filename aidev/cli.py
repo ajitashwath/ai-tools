@@ -9,8 +9,8 @@ from pathlib import Path
 import click
 
 from aidev.server import API_HOST, API_PORT
-from aidev.trace import Tracer
 from aidev.storage import TraceSQLite
+from aidev.trace import Tracer
 
 DEFAULT_DB_PATH = "traces.db"
 
@@ -18,7 +18,6 @@ DEFAULT_DB_PATH = "traces.db"
 @click.group()
 def cli():
     """AI DevTools - local-first AI debugging and experimentation."""
-    pass
 
 
 @cli.command()
@@ -175,9 +174,8 @@ def compare(trace_id_1: str, trace_id_2: str):
         click.echo(f"  {span2.name}: N/A")
     if s1_latency is not None and s2_latency is not None:
         diff = s2_latency - s1_latency
-        click.echo(
-            f"  Difference: {diff:+.2f}s {'(faster)' if diff < 0 else '(slower)' if diff > 0 else '(same)'}"
-        )
+        pace = "(faster)" if diff < 0 else "(slower)" if diff > 0 else "(same)"
+        click.echo(f"  Difference: {diff:+.2f}s {pace}")
     click.echo("")
 
     # Compare token usage
@@ -214,9 +212,8 @@ def compare(trace_id_1: str, trace_id_2: str):
         click.echo(f"  {span2.name}: N/A")
     if s1_ttft is not None and s2_ttft is not None:
         diff = s2_ttft - s1_ttft
-        click.echo(
-            f"  Difference: {diff:+.2f}s {'(faster)' if diff < 0 else '(slower)' if diff > 0 else '(same)'}"
-        )
+        pace = "(faster)" if diff < 0 else "(slower)" if diff > 0 else "(same)"
+        click.echo(f"  Difference: {diff:+.2f}s {pace}")
     click.echo("")
 
     # Compare tokens/sec
@@ -231,9 +228,8 @@ def compare(trace_id_1: str, trace_id_2: str):
         click.echo(f"  {span2.name}: N/A")
     if s1_tok_per_sec is not None and s2_tok_per_sec is not None:
         ratio = s2_tok_per_sec / s1_tok_per_sec
-        click.echo(
-            f"  Difference: {ratio:.2f}x {'(faster)' if ratio > 1 else '(slower)' if ratio < 1 else '(same)'}"
-        )
+        pace = "(faster)" if ratio > 1 else "(slower)" if ratio < 1 else "(same)"
+        click.echo(f"  Difference: {ratio:.2f}x {pace}")
     click.echo("")
 
     # Compare model
@@ -323,7 +319,7 @@ def sandbox(repo_path: str, task: str, model: str, starting_commit: str = "HEAD"
         # Check if Docker is available
         try:
             result = subprocess.run(
-                ["docker", "--version"], capture_output=True, text=True, timeout=5
+                ["docker", "--version"], check=False, capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
                 click.echo(f"Docker available: {result.stdout.strip()}")
@@ -349,7 +345,7 @@ def sandbox(repo_path: str, task: str, model: str, starting_commit: str = "HEAD"
 
         click.echo("")
         click.echo("=== Sandbox experiment complete ===")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - deliberate top-level CLI crash guard
         click.echo(f"Error during sandbox setup: {e}", err=True)
         raise SystemExit(1)
 

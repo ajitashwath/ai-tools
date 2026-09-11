@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from aidev.storage import TraceSQLite
@@ -39,8 +39,8 @@ class ModelInfo:
     context_window: int
     supports_tools: bool = True
     supports_vision: bool = False
-    cost_per_1k_input: Optional[float] = None
-    cost_per_1k_output: Optional[float] = None
+    cost_per_1k_input: float | None = None
+    cost_per_1k_output: float | None = None
 
 
 @dataclass
@@ -49,14 +49,14 @@ class ArenaScore:
 
     model_name: str
     provider: Provider
-    avg_latency: Optional[float] = None  # in seconds
-    avg_ttft: Optional[float] = None  # Time To First Token
-    avg_tokens_per_sec: Optional[float] = None
-    total_tokens: Optional[int] = None
-    error_rate: Optional[float] = None  # errors / total runs
-    success_rate: Optional[float] = None  # runs without error
-    cost_estimate: Optional[float] = None
-    comparison_data: Dict[str, any] = field(default_factory=dict)
+    avg_latency: float | None = None  # in seconds
+    avg_ttft: float | None = None  # Time To First Token
+    avg_tokens_per_sec: float | None = None
+    total_tokens: int | None = None
+    error_rate: float | None = None  # errors / total runs
+    success_rate: float | None = None  # runs without error
+    cost_estimate: float | None = None
+    comparison_data: dict[str, any] = field(default_factory=dict)
 
 
 class ModelArena:
@@ -68,8 +68,8 @@ class ModelArena:
 
     def __init__(self, storage: TraceSQLite):
         self.storage = storage
-        self._models: Dict[str, ModelInfo] = {}
-        self._scores: Dict[str, ArenaScore] = {}
+        self._models: dict[str, ModelInfo] = {}
+        self._scores: dict[str, ArenaScore] = {}
 
     def register_model(self, model_info: ModelInfo) -> None:
         """Register a model available in the arena."""
@@ -94,7 +94,7 @@ class ModelArena:
 
         return score
 
-    def compare_models(self, model_a: str, model_b: str) -> Optional[Dict[str, any]]:
+    def compare_models(self, model_a: str, model_b: str) -> dict[str, any] | None:
         """Compare two models based on their traced spans.
 
         Returns a dict with engineering metrics difference, or None if
@@ -109,7 +109,7 @@ class ModelArena:
         if score_b.avg_latency is None and score_b.total_tokens is None:
             return None  # No data for model B
 
-        comparison: Dict[str, any] = {
+        comparison: dict[str, any] = {
             "model_a": model_a,
             "model_b": model_b,
         }

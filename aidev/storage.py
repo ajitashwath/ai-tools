@@ -4,7 +4,6 @@ import json
 import os
 import sqlite3
 import threading
-from typing import List, Optional, Tuple
 
 from aidev.trace import Span, SpanStatus
 
@@ -15,7 +14,7 @@ _COLUMNS = (
 )
 
 
-def _row_to_span(row: Tuple) -> Span:
+def _row_to_span(row: tuple) -> Span:
     """Map a raw ``spans`` row tuple to a :class:`Span`.
 
     Single source of truth for row mapping — every read path must use this
@@ -54,7 +53,7 @@ class TraceSQLite:
     def __init__(self, db_path: str = "traces.db"):
         self.db_path = db_path
         self._lock = threading.Lock()
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._init_db()
 
     def _init_db(self) -> None:
@@ -100,7 +99,9 @@ class TraceSQLite:
             self._conn.execute(
                 """
                 INSERT OR REPLACE INTO spans
-                (id, name, parent_id, start_time, end_time, status, metadata, errors, inputs, outputs, model, model_token_count, operation, ttft, tokens_per_sec, stop_reason, total_tokens)
+                (id, name, parent_id, start_time, end_time, status, metadata,
+                 errors, inputs, outputs, model, model_token_count, operation,
+                 ttft, tokens_per_sec, stop_reason, total_tokens)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -125,12 +126,12 @@ class TraceSQLite:
             )
             self._conn.commit()
 
-    def save_all(self, spans: List[Span]) -> None:
+    def save_all(self, spans: list[Span]) -> None:
         """Save multiple spans."""
         for span in spans:
             self.save(span)
 
-    def delete_spans(self, span_ids: List[str]) -> None:
+    def delete_spans(self, span_ids: list[str]) -> None:
         """Delete the explicitly supplied spans."""
         if not span_ids:
             return
@@ -139,7 +140,7 @@ class TraceSQLite:
             self._conn.execute(f"DELETE FROM spans WHERE id IN ({placeholders})", span_ids)
             self._conn.commit()
 
-    def get_by_id(self, span_id: str) -> Optional[Span]:
+    def get_by_id(self, span_id: str) -> Span | None:
         """Retrieve a span by ID."""
         with self._lock:
             row = self._conn.execute(
@@ -150,7 +151,7 @@ class TraceSQLite:
             return None
         return _row_to_span(row)
 
-    def get_root_spans(self) -> List[Span]:
+    def get_root_spans(self) -> list[Span]:
         """Retrieve all root spans (no parent)."""
         with self._lock:
             rows = self._conn.execute(
@@ -158,7 +159,7 @@ class TraceSQLite:
             ).fetchall()
         return [_row_to_span(row) for row in rows]
 
-    def get_all_spans(self) -> List[Span]:
+    def get_all_spans(self) -> list[Span]:
         """Retrieve every span ordered by start time."""
         with self._lock:
             rows = self._conn.execute(
@@ -166,7 +167,7 @@ class TraceSQLite:
             ).fetchall()
         return [_row_to_span(row) for row in rows]
 
-    def get_children(self, parent_id: str) -> List[Span]:
+    def get_children(self, parent_id: str) -> list[Span]:
         """Retrieve child spans for a given parent ID."""
         with self._lock:
             rows = self._conn.execute(

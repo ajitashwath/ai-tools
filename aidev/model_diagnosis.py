@@ -13,7 +13,6 @@ black-box heuristics. Diagnostics are explicit, explainable, and falsifiable.
 from __future__ import annotations
 
 from collections import Counter
-from typing import List, Set
 
 from aidev.trace import Span, SpanStatus
 
@@ -32,8 +31,8 @@ class DiagnosisResult:
         self.excessive_retries: int = 0
         self.failure_to_run_tests: bool = False
         self.unchanged_actions: int = 0
-        self.detected_patterns: List[str] = []
-        self.recommendations: List[str] = []
+        self.detected_patterns: list[str] = []
+        self.recommendations: list[str] = []
         self.severity: str = "low"  # low, medium, high
 
 
@@ -54,7 +53,7 @@ class AgentDiagnosis:
     THRESHOLD_EXCESSIVE_RETRIES: int = 5
     THRESHOLD_UNCHANGED_ACTIONS: int = 3
 
-    def diagnose(self, spans: List[Span], agent_id: str = "agent") -> DiagnosisResult:
+    def diagnose(self, spans: list[Span], agent_id: str = "agent") -> DiagnosisResult:
         """Diagnose agent execution patterns from a list of spans.
 
         Args:
@@ -192,7 +191,7 @@ class AgentDiagnosis:
 
     # --- Internal helper methods ---
 
-    def _count_repeated_inspections(self, spans: List[Span]) -> int:
+    def _count_repeated_inspections(self, spans: list[Span]) -> int:
         """Count how many times the same file was inspected across spans.
 
         Looks at metadata keys like 'file_path', 'path', 'filename' across all spans.
@@ -210,7 +209,7 @@ class AgentDiagnosis:
         repeated = sum(1 for count in file_counts.values() if count > 1)
         return repeated
 
-    def _count_repeated_tool_calls(self, spans: List[Span]) -> int:
+    def _count_repeated_tool_calls(self, spans: list[Span]) -> int:
         """Count how many spans have identical tool call signatures.
 
         Looks at metadata keys like 'tool', 'function', 'operation' and their
@@ -239,7 +238,7 @@ class AgentDiagnosis:
         repeated = sum(1 for count in tool_signatures.values() if count > 1)
         return repeated
 
-    def _count_repeated_test_failures(self, spans: List[Span]) -> int:
+    def _count_repeated_test_failures(self, spans: list[Span]) -> int:
         """Count spans with test failures that indicate repeated test failures.
 
         Looks at error messages indicating test failures across spans.
@@ -258,7 +257,7 @@ class AgentDiagnosis:
 
         return failure_count
 
-    def _count_total_tokens(self, spans: List[Span]) -> int:
+    def _count_total_tokens(self, spans: list[Span]) -> int:
         """Count total tokens across all spans from inputs, outputs, and metadata sizes.
 
         Note: This is a heuristic estimate since tokens aren't always explicitly
@@ -279,13 +278,13 @@ class AgentDiagnosis:
                 total += len(str(span.outputs))
         return total
 
-    def _count_exploration(self, spans: List[Span]) -> int:
+    def _count_exploration(self, spans: list[Span]) -> int:
         """Count unique exploration steps across spans.
 
         Looks at metadata for directory navigation, file listing, or exploration
         patterns to count unique exploration steps.
         """
-        exploration_steps: Set[str] = set()
+        exploration_steps: set[str] = set()
         for span in spans:
             metadata = span.metadata
             # Check for exploration-related keys
@@ -296,7 +295,7 @@ class AgentDiagnosis:
 
         return len(exploration_steps)
 
-    def _count_excessive_retries(self, spans: List[Span]) -> int:
+    def _count_excessive_retries(self, spans: list[Span]) -> int:
         """Count retry attempts across spans.
 
         Looks for patterns indicating retry behavior, such as spans with
@@ -320,7 +319,7 @@ class AgentDiagnosis:
                         pass
         return retry_count
 
-    def _count_unchanged_actions(self, spans: List[Span]) -> int:
+    def _count_unchanged_actions(self, spans: list[Span]) -> int:
         """Count iterations where agent actions showed no observable change.
 
         Looks at span metadata or errors indicating no progress between

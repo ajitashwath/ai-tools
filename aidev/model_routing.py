@@ -12,9 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
-from aidev.model_arena import ModelArena, ModelInfo, ArenaScore
+from aidev.model_arena import ArenaScore, ModelArena, ModelInfo
 
 
 class RoutingCriteria(Enum):
@@ -33,9 +32,9 @@ class RoutingResult:
     """Result of model routing evaluation."""
 
     selected_model: str
-    rejected_models: List[str]
+    rejected_models: list[str]
     reasoning: str
-    metrics_comparison: Dict[str, any]
+    metrics_comparison: dict[str, any]
     criteria_used: RoutingCriteria
 
 
@@ -53,7 +52,7 @@ class ModelRouter:
     def route(
         self,
         criteria: RoutingCriteria = RoutingCriteria.BALANCED,
-        rejected: Optional[List[str]] = None,
+        rejected: list[str] | None = None,
     ) -> RoutingResult:
         """Route to the best model based on the given criteria.
 
@@ -68,7 +67,7 @@ class ModelRouter:
             rejected = []
 
         # Get all registered models, excluding rejected ones
-        candidates: List[Tuple[str, ModelInfo, ArenaScore]] = []
+        candidates: list[tuple[str, ModelInfo, ArenaScore]] = []
 
         for model_name, model_info in self.arena._models.items():
             if model_name in rejected:
@@ -110,15 +109,15 @@ class ModelRouter:
 
     def _select_by_criteria(
         self,
-        candidates: List[Tuple[str, ModelInfo, ArenaScore]],
+        candidates: list[tuple[str, ModelInfo, ArenaScore]],
         criteria: RoutingCriteria,
-    ) -> Tuple[str, str, Dict[str, any]]:
+    ) -> tuple[str, str, dict[str, any]]:
         """Select the best model based on the given routing criteria.
 
         Returns: (selected_model_name, reasoning_string, metrics_comparison_dict)
         """
         # Build per-candidate metric summaries, handling None values
-        candidate_metrics: Dict[str, Dict[str, any]] = {}
+        candidate_metrics: dict[str, dict[str, any]] = {}
         for model_name, model_info, score in candidates:
             candidate_metrics[model_name] = {
                 "provider": model_info.provider.value,
@@ -445,7 +444,7 @@ class ModelRouter:
         self,
         task_description: str,
         criteria: RoutingCriteria = RoutingCriteria.BALANCED,
-        excluded_models: Optional[List[str]] = None,
+        excluded_models: list[str] | None = None,
     ) -> RoutingResult:
         """Route a model for a given task description.
 
@@ -465,7 +464,7 @@ class ModelRouter:
         task_lower = task_description.lower()
 
         # Map task types to preferred criteria
-        task_criteria_map: Dict[str, RoutingCriteria] = {
+        task_criteria_map: dict[str, RoutingCriteria] = {
             "code": RoutingCriteria.LATENCY,
             "summarization": RoutingCriteria.THROUGHPUT,
             "analysis": RoutingCriteria.BALANCED,

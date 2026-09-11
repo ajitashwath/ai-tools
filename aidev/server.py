@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,37 +34,37 @@ DEV_ORIGINS = [
 class SpanInfo(BaseModel):
     id: str
     name: str
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     start_time: float
-    end_time: Optional[float] = None
+    end_time: float | None = None
     status: str = "ok"
-    metadata: Dict[str, Any] = {}
-    errors: List[str] = []
-    inputs: Optional[Any] = None
-    outputs: Optional[Any] = None
-    model: Optional[str] = None
-    model_token_count: Optional[int] = None
-    operation: Optional[str] = None
-    ttft: Optional[float] = None
-    tokens_per_sec: Optional[float] = None
-    stop_reason: Optional[str] = None
-    total_tokens: Optional[int] = None
+    metadata: dict[str, Any] = {}
+    errors: list[str] = []
+    inputs: Any | None = None
+    outputs: Any | None = None
+    model: str | None = None
+    model_token_count: int | None = None
+    operation: str | None = None
+    ttft: float | None = None
+    tokens_per_sec: float | None = None
+    stop_reason: str | None = None
+    total_tokens: int | None = None
 
 
 class NewSpan(BaseModel):
     name: str
-    parent_id: Optional[str] = None
-    inputs: Optional[Any] = None
+    parent_id: str | None = None
+    inputs: Any | None = None
 
 
 # --- Module-level storage (initialized in lifespan) ---
 
-storage: Optional[TraceSQLite] = None
+storage: TraceSQLite | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global storage
+    global storage  # noqa: PLW0603 - get_storage() and tests rely on module-global
     storage = TraceSQLite(os.environ.get("AIDEV_DB_PATH", "traces.db"))
     yield
     if storage is not None:
@@ -104,7 +104,7 @@ def get_storage() -> TraceSQLite:
 # --- API Routes ---
 
 
-@app.get("/api/spans", response_model=List[SpanInfo])
+@app.get("/api/spans", response_model=list[SpanInfo])
 def list_spans():
     """List all spans sorted by start time."""
     s = get_storage()

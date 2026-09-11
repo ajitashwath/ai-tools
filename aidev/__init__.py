@@ -1,3 +1,3 @@
-from aidev.trace import trace, Tracer, Span, SpanStatus
+from aidev.trace import Span, SpanStatus, Tracer, trace
 
-__all__ = ["trace", "Tracer", "Span", "SpanStatus"]
+__all__ = ["Span", "SpanStatus", "Tracer", "trace"]
