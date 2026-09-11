@@ -1,27 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-
-const API_BASE = "http://127.0.0.1:18003";
-
-interface SpanInfo {
-  id: string;
-  name: string;
-  parent_id: string | null;
-  start_time: number;
-  end_time: number | null;
-  status: string;
-  metadata: Record<string, any>;
-  errors: string[];
-  inputs: any;
-  outputs: any;
-  model: string | null;
-  model_token_count: number | null;
-  operation: string | null;
-  ttft: number | null;
-  tokens_per_sec: number | null;
-  stop_reason: string | null;
-  total_tokens: number | null;
-}
+import { fetchSpan, type SpanInfo } from "../api";
 
 export default function TraceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,8 +11,7 @@ export default function TraceDetailPage() {
     if (!id) return;
 
     // Fetch span from API
-    fetch(`${API_BASE}/api/spans/${id}`)
-      .then((resp) => resp.json())
+    fetchSpan(id)
       .then((data: SpanInfo) => {
         setSpan(data);
         setLoading(false);

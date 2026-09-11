@@ -4,7 +4,7 @@ This folder contains a deterministic demo data generator. It exercises the
 real tracing SDK, SQLite persistence, FastAPI API, and React dashboard without
 requiring an API key or an external model.
 
-For a clean isolated demo, run from `E:\ai-tools`:
+For a clean isolated demo, run from the repo root:
 
 ```powershell
 python demo\seed_demo.py --db demo\demo.db --reset

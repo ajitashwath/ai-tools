@@ -10,26 +10,28 @@ All decisions are based on traced metrics, never on assumptions or predictions.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from aidev.model_arena import ModelArena, ModelInfo, Provider, ArenaScore
+from aidev.model_arena import ModelArena, ModelInfo, ArenaScore
 
 
 class RoutingCriteria(Enum):
     """Criteria for model routing."""
-    LATENCY = "latency"        # fastest response
+
+    LATENCY = "latency"  # fastest response
     THROUGHPUT = "throughput"  # most tokens/second
-    COST = "cost"              # cheapest (input + output cost)
+    COST = "cost"  # cheapest (input + output cost)
     ERROR_RATE = "error_rate"  # lowest error rate
     SUCCESS_RATE = "success_rate"  # highest success rate
-    BALANCED = "balanced"      # weighted mix of all criteria
+    BALANCED = "balanced"  # weighted mix of all criteria
 
 
 @dataclass
 class RoutingResult:
     """Result of model routing evaluation."""
+
     selected_model: str
     rejected_models: List[str]
     reasoning: str
@@ -48,8 +50,11 @@ class ModelRouter:
     def __init__(self, arena: ModelArena):
         self.arena = arena
 
-    def route(self, criteria: RoutingCriteria = RoutingCriteria.BALANCED,
-              rejected: Optional[List[str]] = None) -> RoutingResult:
+    def route(
+        self,
+        criteria: RoutingCriteria = RoutingCriteria.BALANCED,
+        rejected: Optional[List[str]] = None,
+    ) -> RoutingResult:
         """Route to the best model based on the given criteria.
 
         Args:
@@ -80,15 +85,17 @@ class ModelRouter:
             return RoutingResult(
                 selected_model=model_name,
                 rejected_models=rejected,
-                reasoning="Only one model available: " + model_name + " (" + model_info.provider.value + ")",
+                reasoning="Only one model available: "
+                + model_name
+                + " ("
+                + model_info.provider.value
+                + ")",
                 metrics_comparison={},
                 criteria_used=criteria,
             )
 
         # Select based on criteria
-        selected_name, reasoning, metrics = self._select_by_criteria(
-            candidates, criteria
-        )
+        selected_name, reasoning, metrics = self._select_by_criteria(candidates, criteria)
 
         # Build rejected list (all except selected)
         rejected_final = [name for name, _, _ in candidates if name != selected_name]
@@ -102,7 +109,8 @@ class ModelRouter:
         )
 
     def _select_by_criteria(
-        self, candidates: List[Tuple[str, ModelInfo, ArenaScore]],
+        self,
+        candidates: List[Tuple[str, ModelInfo, ArenaScore]],
         criteria: RoutingCriteria,
     ) -> Tuple[str, str, Dict[str, any]]:
         """Select the best model based on the given routing criteria.
@@ -138,19 +146,32 @@ class ModelRouter:
             # Build reasoning - handle None
             if selected_score.avg_latency is not None:
                 slower_models = [
-                    n for n, _, s in candidates
-                    if n != selected_name and s.avg_latency is not None and s.avg_latency < selected_score.avg_latency
+                    n
+                    for n, _, s in candidates
+                    if n != selected_name
+                    and s.avg_latency is not None
+                    and s.avg_latency < selected_score.avg_latency
                 ]
                 if slower_models:
                     reasoning = (
-                        "Selected " + selected_name + " as fastest (avg "
-                        + format(selected_score.avg_latency, ".2f") + "s); "
-                        + "slower: " + ", ".join(slower_models)
+                        "Selected "
+                        + selected_name
+                        + " as fastest (avg "
+                        + format(selected_score.avg_latency, ".2f")
+                        + "s); "
+                        + "slower: "
+                        + ", ".join(slower_models)
                     )
                 else:
-                    reasoning = "Selected " + selected_name + " as fastest; all others have no latency data or are slower"
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as fastest; all others have no latency data or are slower"
+                    )
             else:
-                reasoning = "Selected " + selected_name + " as fastest; all others have no latency data"
+                reasoning = (
+                    "Selected " + selected_name + " as fastest; all others have no latency data"
+                )
             candidate_metrics_summary = {}
             for name, m in candidate_metrics.items():
                 candidate_metrics_summary[name] = {
@@ -171,21 +192,44 @@ class ModelRouter:
             # Build reasoning - handle None
             if selected_score.avg_tokens_per_sec is not None:
                 faster_models = [
-                    n for n, _, s in candidates
-                    if n != selected_name and s.avg_tokens_per_sec is not None and s.avg_tokens_per_sec > selected_score.avg_tokens_per_sec
+                    n
+                    for n, _, s in candidates
+                    if n != selected_name
+                    and s.avg_tokens_per_sec is not None
+                    and s.avg_tokens_per_sec > selected_score.avg_tokens_per_sec
                 ]
                 if faster_models:
-                    reasoning = "Selected " + selected_name + " as highest throughput (" + format(selected_score.avg_tokens_per_sec, ".1f") + " tok/s); slower: " + ", ".join(faster_models)
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as highest throughput ("
+                        + format(selected_score.avg_tokens_per_sec, ".1f")
+                        + " tok/s); slower: "
+                        + ", ".join(faster_models)
+                    )
                 else:
-                    reasoning = "Selected " + selected_name + " as highest throughput (" + format(selected_score.avg_tokens_per_sec, ".1f") + " tok/s); others have no throughput data"
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as highest throughput ("
+                        + format(selected_score.avg_tokens_per_sec, ".1f")
+                        + " tok/s); others have no throughput data"
+                    )
             else:
-                reasoning = "Selected " + selected_name + " as highest throughput; others have no throughput data"
+                reasoning = (
+                    "Selected "
+                    + selected_name
+                    + " as highest throughput; others have no throughput data"
+                )
             candidate_metrics_summary = {}
             for name, m in candidate_metrics.items():
                 candidate_metrics_summary[name] = {
                     "tokens_per_sec": m["tokens_per_sec"],
                 }
-            metrics = {"candidate_metrics": candidate_metrics_summary, "selection_type": "throughput"}
+            metrics = {
+                "candidate_metrics": candidate_metrics_summary,
+                "selection_type": "throughput",
+            }
 
         elif criteria == RoutingCriteria.COST:
             # Select model with lowest cost estimate
@@ -200,13 +244,29 @@ class ModelRouter:
             # Build reasoning - handle None
             if selected_score.cost_estimate is not None:
                 more_expensive = [
-                    n for n, _, s in candidates
-                    if n != selected_name and s.cost_estimate is not None and s.cost_estimate < selected_score.cost_estimate
+                    n
+                    for n, _, s in candidates
+                    if n != selected_name
+                    and s.cost_estimate is not None
+                    and s.cost_estimate < selected_score.cost_estimate
                 ]
                 if more_expensive:
-                    reasoning = "Selected " + selected_name + " as cheapest (cost " + format(selected_score.cost_estimate, ".4f") + "/1k tokens); more expensive: " + ", ".join(more_expensive)
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as cheapest (cost "
+                        + format(selected_score.cost_estimate, ".4f")
+                        + "/1k tokens); more expensive: "
+                        + ", ".join(more_expensive)
+                    )
                 else:
-                    reasoning = "Selected " + selected_name + " as cheapest (cost " + format(selected_score.cost_estimate, ".4f") + "/1k tokens); others have no cost data"
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as cheapest (cost "
+                        + format(selected_score.cost_estimate, ".4f")
+                        + "/1k tokens); others have no cost data"
+                    )
             else:
                 reasoning = "Selected " + selected_name + " as cheapest; others have no cost data"
             candidate_metrics_summary = {}
@@ -229,21 +289,44 @@ class ModelRouter:
             # Build reasoning - handle None
             if selected_score.error_rate is not None:
                 more_error_prone = [
-                    n for n, _, s in candidates
-                    if n != selected_name and s.error_rate is not None and s.error_rate > selected_score.error_rate
+                    n
+                    for n, _, s in candidates
+                    if n != selected_name
+                    and s.error_rate is not None
+                    and s.error_rate > selected_score.error_rate
                 ]
                 if more_error_prone:
-                    reasoning = "Selected " + selected_name + " as most reliable (error_rate=" + format(selected_score.error_rate, ".2%") + "); higher error rate: " + ", ".join(more_error_prone)
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as most reliable (error_rate="
+                        + format(selected_score.error_rate, ".2%")
+                        + "); higher error rate: "
+                        + ", ".join(more_error_prone)
+                    )
                 else:
-                    reasoning = "Selected " + selected_name + " as most reliable (error_rate=" + format(selected_score.error_rate, ".2%") + "; others have no error rate data"
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as most reliable (error_rate="
+                        + format(selected_score.error_rate, ".2%")
+                        + "; others have no error rate data"
+                    )
             else:
-                reasoning = "Selected " + selected_name + " as most reliable; others have no error rate data"
+                reasoning = (
+                    "Selected "
+                    + selected_name
+                    + " as most reliable; others have no error rate data"
+                )
             candidate_metrics_summary = {}
             for name, m in candidate_metrics.items():
                 candidate_metrics_summary[name] = {
                     "error_rate": m["error_rate"],
                 }
-            metrics = {"candidate_metrics": candidate_metrics_summary, "selection_type": "error_rate"}
+            metrics = {
+                "candidate_metrics": candidate_metrics_summary,
+                "selection_type": "error_rate",
+            }
 
         elif criteria == RoutingCriteria.SUCCESS_RATE:
             # Select model with highest success_rate
@@ -258,21 +341,44 @@ class ModelRouter:
             # Build reasoning - handle None
             if selected_score.success_rate is not None:
                 less_success = [
-                    n for n, _, s in candidates
-                    if n != selected_name and s.success_rate is not None and s.success_rate < selected_score.success_rate
+                    n
+                    for n, _, s in candidates
+                    if n != selected_name
+                    and s.success_rate is not None
+                    and s.success_rate < selected_score.success_rate
                 ]
                 if less_success:
-                    reasoning = "Selected " + selected_name + " as highest success rate (" + format(selected_score.success_rate, ".1%") + "); lower success: " + ", ".join(less_success)
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as highest success rate ("
+                        + format(selected_score.success_rate, ".1%")
+                        + "); lower success: "
+                        + ", ".join(less_success)
+                    )
                 else:
-                    reasoning = "Selected " + selected_name + " as highest success rate (" + format(selected_score.success_rate, ".1%") + "; others have no success rate data"
+                    reasoning = (
+                        "Selected "
+                        + selected_name
+                        + " as highest success rate ("
+                        + format(selected_score.success_rate, ".1%")
+                        + "; others have no success rate data"
+                    )
             else:
-                reasoning = "Selected " + selected_name + " as highest success rate; others have no success rate data"
+                reasoning = (
+                    "Selected "
+                    + selected_name
+                    + " as highest success rate; others have no success rate data"
+                )
             candidate_metrics_summary = {}
             for name, m in candidate_metrics.items():
                 candidate_metrics_summary[name] = {
                     "success_rate": m["success_rate"],
                 }
-            metrics = {"candidate_metrics": candidate_metrics_summary, "selection_type": "success_rate"}
+            metrics = {
+                "candidate_metrics": candidate_metrics_summary,
+                "selection_type": "success_rate",
+            }
 
         elif criteria == RoutingCriteria.BALANCED:
             # Balanced: prefer models that are good across multiple metrics.
@@ -312,7 +418,9 @@ class ModelRouter:
                 dominant_notes.append("success rate data available")
 
             # Build reasoning
-            reasoning_parts = ["Selected " + selected_name + " (" + selected_info.family + " via balanced criteria"]
+            reasoning_parts = [
+                "Selected " + selected_name + " (" + selected_info.family + " via balanced criteria"
+            ]
             if dominant_notes:
                 reasoning_parts.append("data: " + ", ".join(dominant_notes))
             else:
@@ -323,14 +431,22 @@ class ModelRouter:
             # Fallback: select the first candidate
             selected_name = candidates[0][0]
             selected_info, selected_score = candidates[0]
-            reasoning = "Selected " + selected_name + " as default (only criterion: " + criteria.value + ")"
-            metrics = {"selection_type": criteria.value, "note": "Using " + criteria.value + " criterion with limited data"}
+            reasoning = (
+                "Selected " + selected_name + " as default (only criterion: " + criteria.value + ")"
+            )
+            metrics = {
+                "selection_type": criteria.value,
+                "note": "Using " + criteria.value + " criterion with limited data",
+            }
 
         return selected_name, reasoning, metrics
 
-    def route_for_task(self, task_description: str,
-                       criteria: RoutingCriteria = RoutingCriteria.BALANCED,
-                       excluded_models: Optional[List[str]] = None) -> RoutingResult:
+    def route_for_task(
+        self,
+        task_description: str,
+        criteria: RoutingCriteria = RoutingCriteria.BALANCED,
+        excluded_models: Optional[List[str]] = None,
+    ) -> RoutingResult:
         """Route a model for a given task description.
 
         In a full implementation, the task description would be analyzed

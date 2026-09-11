@@ -3,14 +3,16 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
 import click
 
+from aidev.server import API_HOST, API_PORT
 from aidev.trace import Tracer
 from aidev.storage import TraceSQLite
+
+DEFAULT_DB_PATH = "traces.db"
 
 
 @click.group()
@@ -27,7 +29,7 @@ def trace(name: str):
     Example: aidev trace my_agent
     """
     click.echo(f"Starting trace: {name}")
-    storage = TraceSQLite("traces.db")
+    storage = TraceSQLite(DEFAULT_DB_PATH)
     tracer = Tracer(storage=storage)
     try:
         with tracer.trace(name) as t:
@@ -40,17 +42,14 @@ def trace(name: str):
 def serve():
     """Start the AI DevTools API server."""
     import uvicorn
-    from aidev.server import app as fastapi_app
 
-    uvicorn.run(fastapi_app, host="127.0.0.1", port=18003)
+    uvicorn.run("aidev.server:app", host=API_HOST, port=API_PORT)
 
 
 @cli.command()
 def init():
     """Initialize AI DevTools in the current directory."""
-    from aidev.storage import TraceSQLite
-
-    db = TraceSQLite("traces.db")
+    db = TraceSQLite(DEFAULT_DB_PATH)
     db.close()
     click.echo("Initialized AI DevTools. traces.db created.")
 
@@ -72,7 +71,7 @@ def replay(trace_id: str):
     Coding-agent replays use isolated Git worktrees or temporary repositories
     to never modify the user's primary repository accidentally.
     """
-    storage = TraceSQLite("traces.db")
+    storage = TraceSQLite(DEFAULT_DB_PATH)
     span = storage.get_by_id(trace_id)
     if span is None:
         click.echo(f"Error: Span '{trace_id}' not found", err=True)
@@ -132,7 +131,7 @@ def compare(trace_id_1: str, trace_id_2: str):
     - errors
     - final diff
     """
-    storage = TraceSQLite("traces.db")
+    storage = TraceSQLite(DEFAULT_DB_PATH)
 
     span1 = storage.get_by_id(trace_id_1)
     span2 = storage.get_by_id(trace_id_2)
@@ -150,7 +149,7 @@ def compare(trace_id_1: str, trace_id_2: str):
     # Compare success status
     s1_status = span1.status.value
     s2_status = span2.status.value
-    click.echo(f"Status:")
+    click.echo("Status:")
     click.echo(f"  {span1.name}: {s1_status}")
     click.echo(f"  {span2.name}: {s2_status}")
     status_match = s1_status == s2_status
@@ -158,10 +157,14 @@ def compare(trace_id_1: str, trace_id_2: str):
     click.echo("")
 
     # Compare latency (end - start)
-    s1_latency = (span1.end_time - span1.start_time) if span1.end_time and span1.start_time else None
-    s2_latency = (span2.end_time - span2.start_time) if span2.end_time and span2.start_time else None
+    s1_latency = (
+        (span1.end_time - span1.start_time) if span1.end_time and span1.start_time else None
+    )
+    s2_latency = (
+        (span2.end_time - span2.start_time) if span2.end_time and span2.start_time else None
+    )
 
-    click.echo(f"Latency:")
+    click.echo("Latency:")
     if s1_latency is not None:
         click.echo(f"  {span1.name}: {s1_latency:.2f}s")
     else:
@@ -172,7 +175,9 @@ def compare(trace_id_1: str, trace_id_2: str):
         click.echo(f"  {span2.name}: N/A")
     if s1_latency is not None and s2_latency is not None:
         diff = s2_latency - s1_latency
-        click.echo(f"  Difference: {diff:+.2f}s {'(faster)' if diff < 0 else '(slower)' if diff > 0 else '(same)'}")
+        click.echo(
+            f"  Difference: {diff:+.2f}s {'(faster)' if diff < 0 else '(slower)' if diff > 0 else '(same)'}"
+        )
     click.echo("")
 
     # Compare token usage
@@ -183,7 +188,7 @@ def compare(trace_id_1: str, trace_id_2: str):
     s1_tok_per_sec = span1.tokens_per_sec
     s2_tok_per_sec = span2.tokens_per_sec
 
-    click.echo(f"Token usage:")
+    click.echo("Token usage:")
     if s1_tokens is not None:
         click.echo(f"  {span1.name}: {s1_tokens} total tokens")
     else:
@@ -198,7 +203,7 @@ def compare(trace_id_1: str, trace_id_2: str):
     click.echo("")
 
     # Compare TTFT
-    click.echo(f"Time To First Token:")
+    click.echo("Time To First Token:")
     if s1_ttft is not None:
         click.echo(f"  {span1.name}: {s1_ttft:.2f}s")
     else:
@@ -209,11 +214,13 @@ def compare(trace_id_1: str, trace_id_2: str):
         click.echo(f"  {span2.name}: N/A")
     if s1_ttft is not None and s2_ttft is not None:
         diff = s2_ttft - s1_ttft
-        click.echo(f"  Difference: {diff:+.2f}s {'(faster)' if diff < 0 else '(slower)' if diff > 0 else '(same)'}")
+        click.echo(
+            f"  Difference: {diff:+.2f}s {'(faster)' if diff < 0 else '(slower)' if diff > 0 else '(same)'}"
+        )
     click.echo("")
 
     # Compare tokens/sec
-    click.echo(f"Tokens/Second (throughput):")
+    click.echo("Tokens/Second (throughput):")
     if s1_tok_per_sec is not None:
         click.echo(f"  {span1.name}: {s1_tok_per_sec:.1f} tokens/s")
     else:
@@ -224,13 +231,15 @@ def compare(trace_id_1: str, trace_id_2: str):
         click.echo(f"  {span2.name}: N/A")
     if s1_tok_per_sec is not None and s2_tok_per_sec is not None:
         ratio = s2_tok_per_sec / s1_tok_per_sec
-        click.echo(f"  Difference: {ratio:.2f}x {'(faster)' if ratio > 1 else '(slower)' if ratio < 1 else '(same)'}")
+        click.echo(
+            f"  Difference: {ratio:.2f}x {'(faster)' if ratio > 1 else '(slower)' if ratio < 1 else '(same)'}"
+        )
     click.echo("")
 
     # Compare model
     s1_model = span1.model
     s2_model = span2.model
-    click.echo(f"Model:")
+    click.echo("Model:")
     click.echo(f"  {span1.name}: {s1_model or '—'}")
     click.echo(f"  {span2.name}: {s2_model or '—'}")
     model_diff = s1_model != s2_model
@@ -240,7 +249,7 @@ def compare(trace_id_1: str, trace_id_2: str):
     # Compare errors
     s1_errors = span1.errors
     s2_errors = span2.errors
-    click.echo(f"Errors:")
+    click.echo("Errors:")
     click.echo(f"  {span1.name}: {len(s1_errors)} error(s)")
     click.echo(f"  {span2.name}: {len(s2_errors)} error(s)")
     errors_same = len(s1_errors) == len(s2_errors) and all(
@@ -308,14 +317,13 @@ def sandbox(repo_path: str, task: str, model: str, starting_commit: str = "HEAD"
             raise SystemExit(1)
 
         # Get current branch and starting commit info
-        click.echo(f"Repository is a git repo")
+        click.echo("Repository is a git repo")
         click.echo(f"Starting from commit: {starting_commit}")
 
         # Check if Docker is available
         try:
             result = subprocess.run(
-                ["docker", "--version"],
-                capture_output=True, text=True, timeout=5
+                ["docker", "--version"], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
                 click.echo(f"Docker available: {result.stdout.strip()}")
@@ -346,7 +354,10 @@ def sandbox(repo_path: str, task: str, model: str, starting_commit: str = "HEAD"
         raise SystemExit(1)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console-script entry point (see ``pyproject.toml`` ``[project.scripts]``)."""
     cli()
 
-main = cli
+
+if __name__ == "__main__":
+    main()

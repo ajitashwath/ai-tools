@@ -12,15 +12,17 @@ Supports:
 
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, Optional
+
+if TYPE_CHECKING:
+    from aidev.storage import TraceSQLite
 
 
 class Provider(Enum):
     """Supported model providers."""
+
     OPENAI = "openai"
     OLLAMA = "ollama"
     LOCAL = "local"
@@ -30,6 +32,7 @@ class Provider(Enum):
 @dataclass
 class ModelInfo:
     """Metadata about a model available in the arena."""
+
     name: str
     provider: Provider
     family: str  # e.g., "gpt-4o", "claude-3", "llama-3"
@@ -43,14 +46,15 @@ class ModelInfo:
 @dataclass
 class ArenaScore:
     """Score for a model in the arena, based on traced metrics."""
+
     model_name: str
     provider: Provider
     avg_latency: Optional[float] = None  # in seconds
-    avg_ttft: Optional[float] = None     # Time To First Token
+    avg_ttft: Optional[float] = None  # Time To First Token
     avg_tokens_per_sec: Optional[float] = None
     total_tokens: Optional[int] = None
-    error_rate: Optional[float] = None   # errors / total runs
-    success_rate: Optional[float] = None # runs without error
+    error_rate: Optional[float] = None  # errors / total runs
+    success_rate: Optional[float] = None  # runs without error
     cost_estimate: Optional[float] = None
     comparison_data: Dict[str, any] = field(default_factory=dict)
 
@@ -79,10 +83,6 @@ class ModelArena:
         """
         score = ArenaScore(model_name=model_name, provider=self._get_provider(model_name))
 
-        # Search for spans with this model
-        all_spans: list = []
-        # We need to search through all spans; storage only provides root spans
-        # For now, compute from available data
         # TODO: Add a method to storage to get spans by model filter
 
         # Since we can't easily filter spans by model from storage alone,
@@ -126,9 +126,7 @@ class ModelArena:
         if score_a.avg_ttft is not None and score_b.avg_ttft is not None:
             diff = score_b.avg_ttft - score_a.avg_ttft
             comparison["ttft_diff_s"] = diff
-            comparison["ttft_faster"] = (
-                "model_a" if diff < 0 else "model_b" if diff > 0 else "tie"
-            )
+            comparison["ttft_faster"] = "model_a" if diff < 0 else "model_b" if diff > 0 else "tie"
 
         # Compare tokens/sec
         if score_a.avg_tokens_per_sec is not None and score_b.avg_tokens_per_sec is not None:

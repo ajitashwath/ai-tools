@@ -2,23 +2,34 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from aidev.storage import TraceSQLite
-from aidev.trace import Span, SpanStatus
+from aidev.trace import Span, Tracer
+
+# --- Canonical ports ---
+# API server (FastAPI): 18003. UI dev server (Vite): 5174.
+API_HOST = "127.0.0.1"
+API_PORT = 18003
+
+# Local dev origins allowed to call the API from a browser.
+DEV_ORIGINS = [
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+]
 
 
 # --- Pydantic models for API ---
+
 
 class SpanInfo(BaseModel):
     id: str
@@ -56,7 +67,9 @@ async def lifespan(app: FastAPI):
     global storage
     storage = TraceSQLite(os.environ.get("AIDEV_DB_PATH", "traces.db"))
     yield
-    storage.close()
+    if storage is not None:
+        storage.close()
+        storage = None
 
 
 # --- FastAPI app ---
@@ -67,10 +80,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Single CORS setup. Credentials are disabled (the API uses no cookies/auth),
+# so a wildcard would be valid — but we restrict origins to the local Vite dev
+# server anyway to avoid exposing the API to any website the user visits.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=DEV_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -78,14 +94,15 @@ app.add_middleware(
 
 # --- Helper to get storage ---
 
+
 def get_storage() -> TraceSQLite:
     if storage is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=500, detail="storage not initialized")
     return storage
 
 
 # --- API Routes ---
+
 
 @app.get("/api/spans", response_model=List[SpanInfo])
 def list_spans():
@@ -101,19 +118,18 @@ def get_span(span_id: str):
     s = get_storage()
     span = s.get_by_id(span_id)
     if span is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Span not found")
     return _span_to_info(span)
 
 
 @app.post("/api/spans", response_model=SpanInfo)
 def create_span(new_span: NewSpan):
-    """Create a new root span."""
-    from fastapi import HTTPException
-    from aidev.trace import Tracer
-
+    """Create a new span (root, or child when ``parent_id`` is given)."""
     tracer = Tracer(storage=get_storage())
-    ctx = tracer.trace(new_span.name, inputs=new_span.inputs)
+    if new_span.parent_id is not None:
+        ctx = tracer.span(new_span.name, parent_id=new_span.parent_id)
+    else:
+        ctx = tracer.trace(new_span.name, inputs=new_span.inputs)
     span = ctx._span
     return _span_to_info(span)
 
@@ -135,13 +151,6 @@ async def websocket_endpoint(websocket: WebSocket):
         pass
 
 
-def _add_children(span: Span, span_map: Dict[str, any]) -> None:
-    children = get_storage().get_children(span.id)
-    for child in children:
-        span_map[child.id] = _span_to_info(child)
-        _add_children(child, span_map)
-
-
 def _span_to_info(span: Span) -> SpanInfo:
     return SpanInfo(
         id=span.id,
@@ -156,21 +165,12 @@ def _span_to_info(span: Span) -> SpanInfo:
         outputs=span.outputs,
         model=span.model,
         model_token_count=span.model_token_count,
-                operation=span.operation,
+        operation=span.operation,
         ttft=span.ttft,
         tokens_per_sec=span.tokens_per_sec,
         stop_reason=span.stop_reason,
         total_tokens=span.total_tokens,
     )
-
-
-# --- Serve static UI from ./static ---
-
-@app.middleware("http")
-async def add_cors_headers(request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    return response
 
 
 # --- Serve built UI from ui/dist (no Node required at runtime) ---

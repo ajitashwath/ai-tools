@@ -1,5 +1,10 @@
 # AI DevTools project walkthrough
 
+> Companion to the [README](../README.md) (quick start + philosophy) and the
+> [demo guide](../demo/README.md) (offline demo setup). This document is the
+> deep dive: architecture, module map, API surface, demo talk track, and
+> known limitations.
+
 ## What this project is
 
 AI DevTools is a local-first observability tool for AI-agent executions. Its
@@ -70,18 +75,13 @@ ui (React + TypeScript + Vite)
 
 ## Five-minute demo script
 
-1. From the repository root, run `python demo\\seed_demo.py --db
-   demo\\demo.db --reset`.
-2. Point the API at the isolated demo database with
-   `$env:AIDEV_DB_PATH = "demo\\demo.db"`, then start it with `python -m
-   uvicorn aidev.server:app --host 127.0.0.1 --port 18003`.
-3. Start the UI in another terminal with `Set-Location ui; npm run dev`.
-4. Open `http://localhost:5174/`.
-5. Explain the two root spans: one approved review and one failed review.
-6. Expand the child rows and point out inspection/test activity.
-7. Open the failed trace and show status, duration, model, token count, TTFT,
+1. Follow [demo/README.md](../demo/README.md) to seed the demo database and
+   start the API (`127.0.0.1:18003`) and UI (`localhost:5174`).
+2. Explain the two root spans: one approved review and one failed review.
+3. Expand the child rows and point out inspection/test activity.
+4. Open the failed trace and show status, duration, model, token count, TTFT,
    throughput, metadata, outputs, and the repeated test error.
-8. Run `python -c "from aidev.server import app; print(app.title)"` if you
+5. Run `python -c "from aidev.server import app; print(app.title)"` if you
    want to show that the API is independently importable.
 
 If the seeder has been run repeatedly and the list is cluttered, run
@@ -124,10 +124,13 @@ review is visible with its child test attempts and error information.”
 
 ```powershell
 python -m compileall -q aidev
-python test_server.py
+pytest -q
+ruff check aidev tests
+ruff format --check aidev tests
 Set-Location ui
+npm run lint
 npm run build
 ```
 
-The first two validate the Python package and API smoke path. The UI build
-validates TypeScript and the production bundle.
+Pytest covers storage, the tracer SDK, and the API routes; ruff covers lint
+and format; the UI build validates TypeScript and the production bundle.

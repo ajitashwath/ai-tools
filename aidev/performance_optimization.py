@@ -9,9 +9,8 @@ black-box recommendations.
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import List, Optional
 
 from aidev.trace import Span, SpanStatus
 
@@ -52,7 +51,9 @@ class PerformanceOptimizer:
     actionable optimization recommendations based on engineering data.
     """
 
-    def benchmark(self, spans: List[Span], model_name: Optional[str] = None) -> PerformanceBenchmark:
+    def benchmark(
+        self, spans: List[Span], model_name: Optional[str] = None
+    ) -> PerformanceBenchmark:
         """Compute performance benchmark from a list of spans.
 
         Args:
@@ -106,7 +107,9 @@ class PerformanceOptimizer:
         # Compute averages
         avg_latency = sum(latencies) / len(latencies) if latencies else None
         avg_ttft = sum(ttfts) / len(ttfts) if ttfts else None
-        avg_tokens_per_sec = sum(tokens_per_secs) / len(tokens_per_secs) if tokens_per_secs else None
+        avg_tokens_per_sec = (
+            sum(tokens_per_secs) / len(tokens_per_secs) if tokens_per_secs else None
+        )
 
         # Compute p95 latency
         p95_latency = None
@@ -145,92 +148,108 @@ class PerformanceOptimizer:
 
         # Latency optimizations
         if benchmark.avg_latency_s is not None and benchmark.avg_latency_s > 1.0:
-            recommendations.append(OptimizationRecommendation(
-                category="latency",
-                priority="high",
-                description="Average latency exceeds 1 second",
-                expected_improvement="reduce latency by 20-30%",
-                actionable_steps=[
-                    "Profile individual span components to identify bottlenecks",
-                    "Consider model with faster inference",
-                    "Reduce context window if not needed",
-                    "Implement caching for repeated computations",
-                ]
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    category="latency",
+                    priority="high",
+                    description="Average latency exceeds 1 second",
+                    expected_improvement="reduce latency by 20-30%",
+                    actionable_steps=[
+                        "Profile individual span components to identify bottlenecks",
+                        "Consider model with faster inference",
+                        "Reduce context window if not needed",
+                        "Implement caching for repeated computations",
+                    ],
+                )
+            )
 
         if benchmark.min_latency_s is not None and benchmark.max_latency_s is not None:
             latency_range = benchmark.max_latency_s - benchmark.min_latency_s
             if latency_range > benchmark.avg_latency_s * 0.5:  # high variance
-                recommendations.append(OptimizationRecommendation(
-                    category="latency",
-                    priority="medium",
-                    description="High latency variance across runs",
-                    expected_improvement="stabilize performance by 15-25%",
-                    actionable_steps=[
-                        "Set random seeds for reproducibility",
-                        "Implement deterministic execution flows",
-                        "Add warm-up runs before measurement",
-                    ]
-                ))
+                recommendations.append(
+                    OptimizationRecommendation(
+                        category="latency",
+                        priority="medium",
+                        description="High latency variance across runs",
+                        expected_improvement="stabilize performance by 15-25%",
+                        actionable_steps=[
+                            "Set random seeds for reproducibility",
+                            "Implement deterministic execution flows",
+                            "Add warm-up runs before measurement",
+                        ],
+                    )
+                )
 
         # TTFT optimizations
         if benchmark.avg_ttft_s is not None and benchmark.avg_ttft_s > 0.5:
-            recommendations.append(OptimizationRecommendation(
-                category="latency",
-                priority="high",
-                description="Average TTFT exceeds 500ms",
-                expected_improvement="reduce TTFT by 30-40%",
-                actionable_steps=[
-                    "Implement model warm-up before first request",
-                    "Use model caching / persistent serving",
-                    "Reduce prompt size to essential elements only",
-                ]
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    category="latency",
+                    priority="high",
+                    description="Average TTFT exceeds 500ms",
+                    expected_improvement="reduce TTFT by 30-40%",
+                    actionable_steps=[
+                        "Implement model warm-up before first request",
+                        "Use model caching / persistent serving",
+                        "Reduce prompt size to essential elements only",
+                    ],
+                )
+            )
 
         # Throughput optimizations
         if benchmark.avg_tokens_per_sec is not None and benchmark.avg_tokens_per_sec < 20:
-            recommendations.append(OptimizationRecommendation(
-                category="throughput",
-                priority="high",
-                description="Low tokens/second throughput",
-                expected_improvement="increase throughput by 2x",
-                actionable_steps=[
-                    "Use a model optimized for throughput",
-                    "Batch requests when possible",
-                    "Implement token counting for better predictability",
-                ]
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    category="throughput",
+                    priority="high",
+                    description="Low tokens/second throughput",
+                    expected_improvement="increase throughput by 2x",
+                    actionable_steps=[
+                        "Use a model optimized for throughput",
+                        "Batch requests when possible",
+                        "Implement token counting for better predictability",
+                    ],
+                )
+            )
 
         # Token usage optimizations
         if benchmark.total_tokens is not None and benchmark.total_tokens > 5000:
-            recommendations.append(OptimizationRecommendation(
-                category="tokens",
-                priority="medium",
-                description="Total tokens exceed 5k across runs",
-                expected_improvement="reduce token usage by 15-25%",
-                actionable_steps=[
-                    "Implement prompt compression",
-                    "Extract only essential context",
-                    "Use token-efficient model instructions",
-                ]
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    category="tokens",
+                    priority="medium",
+                    description="Total tokens exceed 5k across runs",
+                    expected_improvement="reduce token usage by 15-25%",
+                    actionable_steps=[
+                        "Implement prompt compression",
+                        "Extract only essential context",
+                        "Use token-efficient model instructions",
+                    ],
+                )
+            )
 
         # Cost optimizations (if cost data available via metadata)
         # Note: cost estimation is heuristic since not all spans track cost
         if benchmark.error_count > benchmark.total_runs * 0.3:
-            recommendations.append(OptimizationRecommendation(
-                category="cost",
-                priority="high",
-                description="High error rate (" + str(benchmark.error_count) + "/" + str(benchmark.total_runs) +
-                             ") leads to wasted tokens on failed runs",
-                expected_improvement="reduce wasted tokens by " + str(
-                    round(benchmark.error_count / benchmark.total_runs * 100, 1)) + "%",
-                actionable_steps=[
-                    "Review and fix root causes of failures",
-                    "Implement better error handling and retries",
-                    "Add validation before model calls",
-                ]
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    category="cost",
+                    priority="high",
+                    description="High error rate ("
+                    + str(benchmark.error_count)
+                    + "/"
+                    + str(benchmark.total_runs)
+                    + ") leads to wasted tokens on failed runs",
+                    expected_improvement="reduce wasted tokens by "
+                    + str(round(benchmark.error_count / benchmark.total_runs * 100, 1))
+                    + "%",
+                    actionable_steps=[
+                        "Review and fix root causes of failures",
+                        "Implement better error handling and retries",
+                        "Add validation before model calls",
+                    ],
+                )
+            )
 
         # Sort by priority: high > medium > low
         priority_order = {"high": 0, "medium": 1, "low": 2}

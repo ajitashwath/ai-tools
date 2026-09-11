@@ -1,27 +1,6 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { Link } from "react-router-dom";
-
-const API_BASE = "http://127.0.0.1:18003";
-
-interface SpanInfo {
-  id: string;
-  name: string;
-  parent_id: string | null;
-  start_time: number;
-  end_time: number | null;
-  status: string;
-  metadata: Record<string, any>;
-  errors: string[];
-  inputs: any;
-  outputs: any;
-  model: string | null;
-  model_token_count: number | null;
-  operation: string | null;
-  ttft: number | null;
-  tokens_per_sec: number | null;
-  stop_reason: string | null;
-  total_tokens: number | null;
-}
+import { API_BASE, WS_URL, fetchSpans, type SpanInfo } from "../api";
 
 interface RootSpan extends SpanInfo {
   children?: RootSpan[];
@@ -32,11 +11,9 @@ export default function TraceListPage() {
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
 
-  async function fetchSpans() {
+  async function loadSpans() {
     try {
-      const resp = await fetch(`${API_BASE}/api/spans`);
-      if (!resp.ok) throw new Error(`API returned ${resp.status}`);
-      const data = await resp.json();
+      const data = await fetchSpans();
       setSpans(data);
       setConnectionError(false);
     } catch (e) {
@@ -48,10 +25,10 @@ export default function TraceListPage() {
   }
 
   useEffect(() => {
-    const initialFetch = window.setTimeout(() => void fetchSpans(), 0);
+    const initialFetch = window.setTimeout(() => void loadSpans(), 0);
 
     // Set up WebSocket for live updates
-    const ws = new WebSocket("ws://127.0.0.1:18003/ws");
+    const ws = new WebSocket(WS_URL);
     ws.onopen = () => ws.send("get_spans");
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -132,7 +109,7 @@ export default function TraceListPage() {
           <span>{tree.length} root {tree.length === 1 ? "trace" : "traces"}</span>
         </div>
         {connectionError && spans.length === 0 ? (
-          <div className="empty-state">Trace server unavailable. Start FastAPI on 127.0.0.1:18003, then refresh.</div>
+          <div className="empty-state">Trace server unavailable. Start FastAPI on {API_BASE}, then refresh.</div>
         ) : tree.length === 0 ? (
           <div className="empty-state">No traces yet. Run the demo seed script to create sample data.</div>
         ) : (

@@ -12,9 +12,8 @@ black-box heuristics. Diagnostics are explicit, explainable, and falsifiable.
 
 from __future__ import annotations
 
-import json
-from collections import Counter, defaultdict
-from typing import Any, Dict, List, Optional, Set
+from collections import Counter
+from typing import List, Set
 
 from aidev.trace import Span, SpanStatus
 
@@ -103,9 +102,7 @@ class AgentDiagnosis:
                 + str(result.repeated_test_failures)
                 + " test failures detected"
             )
-            result.detected_patterns.append(
-                "tests_not_passed: agent repeatedly fails tests"
-            )
+            result.detected_patterns.append("tests_not_passed: agent repeatedly fails tests")
             result.recommendations.append(
                 "Review test conditions; check for flaky tests or environment issues"
             )
@@ -142,9 +139,7 @@ class AgentDiagnosis:
         result.excessive_retries = self._count_excessive_retries(spans)
         if result.excessive_retries >= self.THRESHOLD_EXCESSIVE_RETRIES:
             result.detected_patterns.append(
-                "excessive_retries: "
-                + str(result.excessive_retries)
-                + " retry attempts detected"
+                "excessive_retries: " + str(result.excessive_retries) + " retry attempts detected"
             )
             result.recommendations.append(
                 "Review retry logic; consider increasing timeouts or fixing root causes"

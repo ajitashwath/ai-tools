@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SQLite trace databases (created locally by aidev init / demos / tests)
+*.db
+*.db-wal
+*.db-shm

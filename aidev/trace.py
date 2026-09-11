@@ -6,7 +6,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, Dict, List, Callable, ContextManager
+from typing import Any, Optional, Dict, List
 
 
 class SpanStatus(Enum):
@@ -41,9 +41,7 @@ class Tracer:
     def __init__(self, storage=None):
         self._spans: List[Span] = []
         self._span_stack: List[Span] = []
-        self._next_id: int = 1
         self._storage = storage
-        self._closed = False
 
     def trace(self, name: str, inputs: Optional[Any] = None) -> "Tracer.SpanContext":
         """Start a new trace span."""
@@ -84,7 +82,6 @@ class Tracer:
             # Save the final state of the span to storage
             if self._tracer._storage:
                 self._tracer._storage.save(self._span)
-            self._tracer._maybe_flush()
             return False
 
         def set_metadata(self, key: str, value: Any) -> None:
@@ -215,18 +212,11 @@ class Tracer:
         """Return spans that have no parent."""
         return [s for s in self._spans if s.parent_id is None]
 
-    def _maybe_flush(self) -> None:
-        """Persist spans to storage if available."""
-        pass
-
     def end(self) -> None:
-        """Close the tracer."""
-        self._closed = True
+        """Close the tracer, finalizing any unfinished spans."""
         for span in self._spans:
             if span.end_time == 0.0:
                 span.end_time = time.time()
-            if span.status == SpanStatus.OK:
-                span.status = SpanStatus.OK
         if self._storage:
             self._storage.save_all(self._spans)
 
@@ -244,4 +234,4 @@ def trace(name: str, inputs: Optional[Any] = None):
     return tracer.trace(name, inputs)
 
 
-__all__ = ["trace", "Tracer", "Span", "SpanStatus", "trace"]
+__all__ = ["trace", "Tracer", "Span", "SpanStatus"]
