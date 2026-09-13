@@ -10,20 +10,16 @@ agent run as inspectable spans — timing, inputs, outputs, model metrics,
 errors — and serves them to a small React dashboard. No Kafka, no Postgres,
 no API keys required.
 
-## Core Loop
-
+## Core Idealogy 
 **RUN → INSPECT → UNDERSTAND → REPLAY → MODIFY → COMPARE → IMPROVE**
 
 ## Screenshot
 
 > *Dashboard preview — trace list with parent/child hierarchy.*
->
-> ![AI DevTools dashboard](docs/screenshot.png)
->
-> *(Placeholder: run the demo below and screenshot your own.)*
+> ![AI DevTools dashboard](asset/image.png)
+
 
 ## Quick Start
-
 Prerequisites: Python ≥ 3.10. For UI development: Node 20+.
 
 ```bash
@@ -43,8 +39,7 @@ cd ui && npm install && npm run dev
 aidev trace my_agent
 ```
 
-End-to-end in SDK code:
-
+End-to-end in SDK code (Not stable):
 ```python
 from aidev import trace
 
@@ -54,7 +49,6 @@ with trace("agent") as t:
 ```
 
 Want realistic data without a model key? Seed the deterministic demo:
-
 ```bash
 python demo/seed_demo.py --db demo/demo.db --reset
 AIDEV_DB_PATH=demo/demo.db aidev serve
@@ -63,7 +57,6 @@ AIDEV_DB_PATH=demo/demo.db aidev serve
 See [demo/README.md](demo/README.md) for the full demo walkthrough.
 
 ## Ports
-
 | Service | Address |
 |---------|---------|
 | API server (`aidev serve` / uvicorn) | `http://127.0.0.1:18003` |
@@ -73,7 +66,6 @@ The React UI calls the API at `127.0.0.1:18003` (see `ui/src/api.ts`).
 The production UI build is also served directly by the API from `ui/dist`.
 
 ## CLI Commands
-
 | Command | Description |
 |---------|-------------|
 | `aidev init` | Initialize AI DevTools (creates `traces.db`) |
@@ -84,7 +76,6 @@ The production UI build is also served directly by the API from `ui/dist`.
 | `aidev sandbox <repo> <task> <model>` | Coding-agent sandbox experiment |
 
 ## SDK Usage
-
 ```python
 from aidev import trace
 
@@ -109,13 +100,11 @@ with trace("outer") as outer:
 ```
 
 ## Data files
-
 `traces.db` (and `demo/demo.db`) are **generated locally** by `aidev init`
 and the demo seeder — they are gitignored and never committed. Point the API
 at a different database with the `AIDEV_DB_PATH` environment variable.
 
 ## Project Structure
-
 ```
 .
 ├── aidev/                      # Python package
@@ -141,14 +130,12 @@ at a different database with the `AIDEV_DB_PATH` environment variable.
 ```
 
 ## Docs
-
-- [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md) — architecture,
+- [docs/PROJECT_WALKTHROUGH.md](docs/PROJECT_WALKTHROUGH.md): Architecture,
   file-by-file map, API surface, demo script, and current limitations.
-- [demo/README.md](demo/README.md) — running the offline demo.
-- [CHANGELOG.md](CHANGELOG.md) — release history (Keep a Changelog).
+- [demo/README.md](demo/README.md): Running the offline demo.
+- [CHANGELOG.md](CHANGELOG.md): Release history.
 
 ## Philosophy
-
 - **Local-first**: Everything runs on one developer device. No Kafka, Kubernetes, Redis, or PostgreSQL.
 - **Provider-agnostic**: Works with OpenAI, Ollama, local models/subprocesses. Never hard-coded around a single provider.
 - **Provider failure does not prevent startup**: Core application works without any provider.
@@ -158,7 +145,6 @@ at a different database with the `AIDEV_DB_PATH` environment variable.
 - **Simple over complex**: Prefer working simple architecture over complex distributed systems.
 
 ## Development
-
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, code style, and the
 release process. TL;DR:
 
@@ -168,5 +154,4 @@ pytest -q && ruff check aidev tests && ruff format --check aidev tests
 ```
 
 ## License
-
-MIT — see [LICENSE](LICENSE).
+MIT: see [LICENSE](LICENSE).
