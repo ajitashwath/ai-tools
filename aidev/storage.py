@@ -176,6 +176,23 @@ class TraceSQLite:
             ).fetchall()
         return [_row_to_span(row) for row in rows]
 
+    def get_spans_by_model(self, model: str) -> list[Span]:
+        """Retrieve spans attributed to a model, ordered by start time."""
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT {_COLUMNS} FROM spans WHERE model = ? ORDER BY start_time",
+                (model,),
+            ).fetchall()
+        return [_row_to_span(row) for row in rows]
+
+    def get_models(self) -> list[str]:
+        """Return the distinct model names recorded in the database."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT DISTINCT model FROM spans WHERE model IS NOT NULL"
+            ).fetchall()
+        return sorted(row[0] for row in rows)
+
     def close(self) -> None:
         with self._lock:
             if self._conn:

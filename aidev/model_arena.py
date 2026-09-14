@@ -14,10 +14,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from aidev.storage import TraceSQLite
+from aidev.storage import TraceSQLite
+from aidev.trace import SpanStatus
 
 
 class Provider(Enum):
@@ -75,24 +74,50 @@ class ModelArena:
         """Register a model available in the arena."""
         self._models[model_info.name] = model_info
 
-    def compute_score(self, model_name: str) -> ArenaScore:
-        """Compute an ArenaScore for a model based on traced spans.
+    def auto_register(self) -> ModelArena:
+        """Register every model name found in the trace database.
 
-        Uses traced metrics: latency, TTFT, tokens/sec, error rate, success rate.
-        If no traces exist for the model, returns a score with None values.
+        Model metadata not present in traces (context window, costs, etc.)
+        is left at conservative defaults; provider is inferred from the name.
         """
-        score = ArenaScore(model_name=model_name, provider=self._get_provider(model_name))
+        for model_name in self.storage.get_models():
+            if model_name not in self._models:
+                self._models[model_name] = ModelInfo(
+                    name=model_name,
+                    provider=self._get_provider(model_name),
+                    family=model_name,
+                    context_window=0,
+                )
+        return self
 
-        # TODO: Add a method to storage to get spans by model filter
+    def compute_score(self, model_name: str) -> ArenaScore:
+        """Compute an ArenaScore for a model from its traced spans.
 
-        # Since we can't easily filter spans by model from storage alone,
-        # we'll compute based on what's available and mark as limited
-        score.comparison_data["note"] = (
-            "Limited: model-based span filtering not yet in storage API; "
-            "using available metadata fields"
+        Averages real measured latency/TTFT/throughput over the spans recorded
+        for this model and derives error/success rates from span status. Models
+        with no traces get a score whose fields are all ``None``.
+        """
+        spans = self.storage.get_spans_by_model(model_name)
+        provider = self._get_provider(model_name)
+        if not spans:
+            return ArenaScore(model_name=model_name, provider=provider)
+
+        latencies = [s.end_time - s.start_time for s in spans if s.end_time > s.start_time]
+        ttfts = [s.ttft for s in spans if s.ttft is not None]
+        throughputs = [s.tokens_per_sec for s in spans if s.tokens_per_sec is not None]
+        tokens = sum(s.total_tokens or 0 for s in spans)
+        errors = sum(1 for s in spans if s.status == SpanStatus.ERROR)
+
+        return ArenaScore(
+            model_name=model_name,
+            provider=provider,
+            avg_latency=sum(latencies) / len(latencies) if latencies else None,
+            avg_ttft=sum(ttfts) / len(ttfts) if ttfts else None,
+            avg_tokens_per_sec=sum(throughputs) / len(throughputs) if throughputs else None,
+            total_tokens=tokens if tokens else None,
+            error_rate=errors / len(spans) if spans else None,
+            success_rate=(len(spans) - errors) / len(spans) if spans else None,
         )
-
-        return score
 
     def compare_models(self, model_a: str, model_b: str) -> dict[str, any] | None:
         """Compare two models based on their traced spans.
@@ -166,11 +191,12 @@ class ModelArena:
 
 
 # Provide a convenience function for quick arena setup
-def create_arena(storage: TraceSQLite) -> ModelArena:
-    """Create a ModelArena instance registered with traced metrics.
 
-    In a full implementation, this would auto-register models from
-    traced data. For now, returns a bare arena for manual registration.
+
+def create_arena(storage: TraceSQLite) -> ModelArena:
+    """Create an arena directly from the trace database.
+
+    All models present in the traces are auto-registered, so routing and
+    comparison work immediately on real traced data.
     """
-    arena = ModelArena(storage)
-    return arena
+    return ModelArena(storage).auto_register()

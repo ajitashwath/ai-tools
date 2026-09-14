@@ -16,10 +16,17 @@ The core story is:
 
 `RUN -> INSPECT -> UNDERSTAND -> REPLAY -> MODIFY -> COMPARE -> IMPROVE`
 
-The currently reliable end-to-end path is `RUN -> INSPECT -> UNDERSTAND`.
-Replay, model routing, model arena, optimization, diagnosis, and sandbox
-modules exist as Python building blocks, but they are not all wired into the
-browser or the CLI yet.
+The fully wired end-to-end paths today are:
+
+- `RUN -> INSPECT -> UNDERSTAND`: SDK traces → SQLite → API → React dashboard.
+- `REPLAY` (real): `aidev replay <id>` re-executes a stored run in an
+  isolated sandbox when the span recorded a repo path, then compares.
+- `IMPROVE` (real): `aidev sandbox` runs a traced, test-driven repair loop;
+  `aidev diagnose`, `aidev optimize`, and `aidev arena` analyze real traced
+  data (deterministic, not ML).
+
+Model arena and router are now driven by real traced metrics from the
+database (latency, throughput, error/success rates).
 
 ## Architecture
 
@@ -57,21 +64,27 @@ ui (React + TypeScript + Vite)
 - `aidev/server.py`: FastAPI lifecycle, REST endpoints, WebSocket endpoint,
   CORS, and optional serving of `ui/dist`.
 - `aidev/cli.py`: Click commands for initialization, server startup, tracing,
-  comparison, replay, and sandbox experiments.
+  sandbox, replay, comparison, diagnosis, optimization, and arena reporting.
+- `aidev/executor.py`: real subprocess runner (arg-list commands, timeout,
+  output capture, wall-clock durations; never a shell string).
+- `aidev/sandbox.py`: `IsolatedSandbox` (private repo copy + traced command
+  execution + change detection) and `SandboxAgent` (test-driven repair loop).
 - `aidev/model_diagnosis.py`: deterministic anti-pattern checks such as
   repeated inspections, repeated tool calls, repeated test failures, context
   bloat, exploration, retries, and unchanged actions.
 - `aidev/performance_optimization.py`: calculates latency, TTFT,
   throughput, token, error, and p95 metrics and turns thresholds into
   recommendations.
-- `aidev/model_arena.py`: model registration and metric-based comparison.
+- `aidev/model_arena.py`: model registration and metric-based comparison,
+  with scores computed from real traced spans.
 - `aidev/model_routing.py`: criteria-based selection from registered models.
 - `ui/src/App.tsx`: routes `/` and `/trace/:id`.
 - `ui/src/pages/TraceListPage.tsx`: fetches spans, refreshes through the
   WebSocket connection, builds the parent/child tree, and links to details.
 - `ui/src/pages/TraceDetailPage.tsx`: displays the selected span’s execution
   metadata, inputs, outputs, model metrics, and errors.
-- `demo/seed_demo.py`: deterministic, offline demo data using the real SDK.
+- `demo/seed_demo.py`: deterministic, offline demo data using the real SDK.<br>
+- `demo/sample_repo/`: intentionally-broken fixture the real sandbox repairs.
 
 ## Five-minute demo script
 
@@ -81,11 +94,17 @@ ui (React + TypeScript + Vite)
 3. Expand the child rows and point out inspection/test activity.
 4. Open the failed trace and show status, duration, model, token count, TTFT,
    throughput, metadata, outputs, and the repeated test error.
-5. Run `python -c "from aidev.server import app; print(app.title)"` if you
-   want to show that the API is independently importable.
+5. Run the real sandbox against the bundled broken fixture:
+   `python -m aidev sandbox demo\sample_repo "fix the failing calc tests" demo-gpt --repair demo\sample_repo\repair.py`
+   Show the baseline (tests failing) → repair applied → final test run passing,
+   with all steps visible as new spans in the dashboard.
+6. `python -m aidev diagnose` — the failed review surfaces as repeated test
+   failures / excessive retries at high severity.
+7. `python -m aidev arena` — routes by latency, throughput, and reliability
+   from the demo's traced metrics.
 
 If the seeder has been run repeatedly and the list is cluttered, run
-`python demo\\seed_demo.py --reset` once before starting the demo. This keeps
+`python demo\seed_demo.py --reset` once before starting the demo. This keeps
 unrelated traces and refreshes only the demo scenarios.
 
 ## What to say during the demo
@@ -107,14 +126,14 @@ review is visible with its child test attempts and error information.”
 
 ## Current limitations to disclose
 
-- The CLI `replay` command creates an isolated temporary copy when a repo path
-  is present, but the actual re-execution is still a placeholder.
-- The CLI `trace` command records a short root span; application code should
-  use the SDK context manager for nested spans and richer metadata.
-- The `sandbox` command verifies repository/Docker conditions and describes
-  the intended isolation flow; it does not run a coding agent yet.
-- The model arena and router are callable Python modules, not dashboard
-  features, and their automatic data registration is incomplete.
+- The CLI `replay` command re-executes a stored run in a sandbox **only when a
+  repo is recorded and still exists**; otherwise it honestly records a fresh
+  traced shell (arbitrary code can’t be re-run without the repo).
+- The `sandbox` repair loop applies deterministic repair scripts — it is not an
+  LLM that writes fixes from scratch. It measures real test outcomes and never
+  fabricates a result.
+- The model arena and router read real traced data but are CLI/reporting
+  surfaces only — routing is not yet integrated into a live request path.
 - Diagnosis and optimization are deterministic threshold-based analysis
   utilities; they are not machine-learned recommendations.
 - The UI is a focused trace viewer, not yet a full replay/compare/diagnosis

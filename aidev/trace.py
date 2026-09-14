@@ -118,6 +118,10 @@ class Tracer:
             """Attach the result produced by this span."""
             self._span.outputs = outputs
 
+        def set_inputs(self, inputs: Any) -> None:
+            """Attach the inputs this span consumed."""
+            self._span.inputs = inputs
+
         # Delegate span attributes for convenience
         @property
         def id(self) -> str:
@@ -229,8 +233,15 @@ class Tracer:
 
 
 def trace(name: str, inputs: Any | None = None):
-    """Convenience function: `with trace("agent"): run_agent()`"""
-    tracer = Tracer()
+    """Convenience function: `with trace("agent"): run_agent()`
+
+    Persists to ``traces.db`` in the current directory — the same default
+    store the ``aidev`` CLI and server use — so a minimal script produces
+    inspectable data without extra setup.
+    """
+    from aidev.storage import TraceSQLite
+
+    tracer = Tracer(storage=TraceSQLite())
     return tracer.trace(name, inputs)
 
 

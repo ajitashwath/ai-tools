@@ -23,6 +23,25 @@ Open <http://localhost:5174/>. The dashboard should show one successful and
 one failed review, with child spans visible beneath each root trace. Open a
 trace to show inputs, outputs, model metrics, metadata, and errors.
 
+## Sandbox demo (real test execution, no API key)
+
+```powershell
+# Baseline: tests FAIL. Repair applied in an isolated copy. Final: tests PASS.
+python -m aidev sandbox demo\sample_repo "fix the failing calc tests" demo-gpt `
+  --repair demo\sample_repo\repair.py
+```
+
+Every step (baseline, repair, final run) is traced and appears in the
+dashboard. The original `demo/sample_repo` is never modified.
+
+## Analysis demo
+
+```powershell
+python -m aidev diagnose   # anti-patterns in the seeded runs
+python -m aidev optimize   # benchmark + prioritized recommendations
+python -m aidev arena      # real model scores + routing per criterion
+```
+
 The API uses `traces.db` by default. Set `AIDEV_DB_PATH` as shown above to
 point it at the isolated demo database.
 

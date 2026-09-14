@@ -71,9 +71,12 @@ The production UI build is also served directly by the API from `ui/dist`.
 | `aidev init` | Initialize AI DevTools (creates `traces.db`) |
 | `aidev trace <name>` | Start a traced execution |
 | `aidev serve` | Start the API server |
-| `aidev replay <id>` | Replay a traced execution (isolated repo) |
+| `aidev replay <id>` | Replay a traced execution in an isolated repo (real re-run when a repo is recorded) |
 | `aidev compare <id1> <id2>` | Compare two traced runs |
-| `aidev sandbox <repo> <task> <model>` | Coding-agent sandbox experiment |
+| `aidev sandbox <repo> <task> <model>` | Real test-driven coding-agent sandbox (deterministic repair scripts, isolated copy) |
+| `aidev diagnose` | Deterministic anti-pattern diagnosis of recorded runs |
+| `aidev optimize` | Performance benchmark + prioritized recommendations |
+| `aidev arena` | Real model scores + routing per criterion from traced data |
 
 ## SDK Usage
 ```python
@@ -110,9 +113,11 @@ at a different database with the `AIDEV_DB_PATH` environment variable.
 ├── aidev/                      # Python package
 │   ├── trace.py                # Tracer SDK (Span, Tracer, trace())
 │   ├── storage.py              # TraceSQLite (SQLite persistence)
-│   ├── server.py               # FastAPI backend (+ WebSocket)
-│   ├── cli.py                  # CLI: aidev init/trace/serve/replay/compare/sandbox
-│   ├── model_arena.py          # Model comparison across providers
+│   ├── server.py               # FastAPI backend (+ WebSocket live push)
+│   ├── cli.py                  # CLI: init/trace/serve/replay/compare/sandbox/diagnose/optimize/arena
+│   ├── executor.py             # Real subprocess runner (sandbox/replay)
+│   ├── sandbox.py              # Isolated repo + test-driven repair loop
+│   ├── model_arena.py          # Model comparison across providers (real traced scores)
 │   ├── model_routing.py        # Automatic model selection by criteria
 │   ├── model_diagnosis.py      # Deterministic agent diagnostics
 │   └── performance_optimization.py # Benchmark + optimization recommendations
@@ -123,8 +128,8 @@ at a different database with the `AIDEV_DB_PATH` environment variable.
 │   │   ├── pages/TraceListPage.tsx   # Trace list with hierarchy
 │   │   └── pages/TraceDetailPage.tsx # Span detail view
 │   └── vite.config.ts         # Vite config (dev server on :5174)
-├── tests/                      # Pytest suite (storage, trace, server)
-├── demo/                       # Deterministic offline demo seeder
+├── tests/                      # Pytest suite (storage, trace, server, sandbox, arena, routing)
+├── demo/                       # Deterministic offline demo seeder + sample sandbox repo
 ├── docs/                       # Deep dives (see docs/ below)
 └── pyproject.toml              # Package configuration
 ```

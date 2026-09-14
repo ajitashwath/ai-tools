@@ -57,14 +57,17 @@ class NewSpan(BaseModel):
     inputs: Any | None = None
 
 
-# --- Module-level storage (initialized in lifespan) ---
+# --- Module-level state (initialized in lifespan) ---
 
 storage: TraceSQLite | None = None
+
+# WebSocket clients for live push updates.
+_ws_clients: set[WebSocket] = set()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global storage  # noqa: PLW0603 - get_storage() and tests rely on module-global
+    global storage  # noqa: PLW0603
     storage = TraceSQLite(os.environ.get("AIDEV_DB_PATH", "traces.db"))
     yield
     if storage is not None:
@@ -92,13 +95,54 @@ app.add_middleware(
 )
 
 
-# --- Helper to get storage ---
+# --- Helpers ---
 
 
 def get_storage() -> TraceSQLite:
     if storage is None:
         raise HTTPException(status_code=500, detail="storage not initialized")
     return storage
+
+
+def _span_to_info(span: Span) -> SpanInfo:
+    return SpanInfo(
+        id=span.id,
+        name=span.name,
+        parent_id=span.parent_id,
+        start_time=span.start_time,
+        end_time=span.end_time,
+        status=span.status.value,
+        metadata=span.metadata,
+        errors=span.errors,
+        inputs=span.inputs,
+        outputs=span.outputs,
+        model=span.model,
+        model_token_count=span.model_token_count,
+        operation=span.operation,
+        ttft=span.ttft,
+        tokens_per_sec=span.tokens_per_sec,
+        stop_reason=span.stop_reason,
+        total_tokens=span.total_tokens,
+    )
+
+
+async def _broadcast_spans() -> None:
+    """Push the full span list to every connected WebSocket client."""
+    if not _ws_clients:
+        return
+    s = get_storage()
+    payload = {
+        "type": "spans_update",
+        "spans": [_span_to_info(si).model_dump() for si in s.get_all_spans()],
+    }
+    stale: list[WebSocket] = []
+    for ws in list(_ws_clients):
+        try:
+            await ws.send_json(payload)
+        except (RuntimeError, WebSocketDisconnect):
+            stale.append(ws)
+    for ws in stale:
+        _ws_clients.discard(ws)
 
 
 # --- API Routes ---
@@ -123,54 +167,45 @@ def get_span(span_id: str):
 
 
 @app.post("/api/spans", response_model=SpanInfo)
-def create_span(new_span: NewSpan):
-    """Create a new span (root, or child when ``parent_id`` is given)."""
-    tracer = Tracer(storage=get_storage())
+async def create_span(new_span: NewSpan):
+    """Create a new completed span (root or child when ``parent_id`` is set).
+
+    The span is finalized immediately (``end_time`` = ``start_time``) so the
+    UI sees a complete record without requiring a separate update call.
+    """
+    s = get_storage()
+    tracer = Tracer(storage=s)
     if new_span.parent_id is not None:
         ctx = tracer.span(new_span.name, parent_id=new_span.parent_id)
     else:
         ctx = tracer.trace(new_span.name, inputs=new_span.inputs)
     span = ctx._span
+    span.end_time = span.start_time  # zero-duration completed span
+    s.save(span)
+    await _broadcast_spans()
     return _span_to_info(span)
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for live trace updates."""
+    """WebSocket endpoint for live trace updates.
+
+    Clients may send ``get_spans`` to request a snapshot, or stay connected
+    to receive automatic pushes whenever a new span is created.
+    """
     await websocket.accept()
+    _ws_clients.add(websocket)
     try:
         while True:
-            # Keep connection alive; receive messages
             msg = await websocket.receive_text()
             if msg == "get_spans":
                 s = get_storage()
-                spans = s.get_all_spans()
-                ws_data = [_span_to_info(si).model_dump() for si in spans]
+                ws_data = [_span_to_info(si).model_dump() for si in s.get_all_spans()]
                 await websocket.send_json({"type": "spans_update", "spans": ws_data})
     except WebSocketDisconnect:
         pass
-
-
-def _span_to_info(span: Span) -> SpanInfo:
-    return SpanInfo(
-        id=span.id,
-        name=span.name,
-        parent_id=span.parent_id,
-        start_time=span.start_time,
-        end_time=span.end_time,
-        status=span.status.value,
-        metadata=span.metadata,
-        errors=span.errors,
-        inputs=span.inputs,
-        outputs=span.outputs,
-        model=span.model,
-        model_token_count=span.model_token_count,
-        operation=span.operation,
-        ttft=span.ttft,
-        tokens_per_sec=span.tokens_per_sec,
-        stop_reason=span.stop_reason,
-        total_tokens=span.total_tokens,
-    )
+    finally:
+        _ws_clients.discard(websocket)
 
 
 # --- Serve built UI from ui/dist (no Node required at runtime) ---

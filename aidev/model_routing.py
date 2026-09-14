@@ -66,6 +66,10 @@ class ModelRouter:
         if rejected is None:
             rejected = []
 
+        # Pull any models recorded in the trace DB so routing works on real
+        # data even if the caller used a bare arena.
+        self.arena.auto_register()
+
         # Get all registered models, excluding rejected ones
         candidates: list[tuple[str, ModelInfo, ArenaScore]] = []
 
@@ -381,51 +385,45 @@ class ModelRouter:
 
         elif criteria == RoutingCriteria.BALANCED:
             # Balanced: prefer models that are good across multiple metrics.
-            # Use a simple scoring: sum of normalized metrics.
-            # For simplicity, if we have latency and throughput data, pick the
-            # model that is fastest AND has good throughput. Otherwise fall back
-            # to the model with the most available metric data.
-            def balanced_key(item):
+            # Each scored metric contributes a normalized term (higher is
+            # better): 1/latency, capped throughput, success rate, reliability
+            # (1 - error rate). The picked model is the maximum blended score.
+
+            def balanced_key(item: tuple[str, ModelInfo, ArenaScore]) -> float:
                 _name, _info, score = item
                 score_val = 0.0
                 count = 0
                 if score.avg_latency is not None and score.avg_latency > 0:
-                    # lower is better, invert: use 1/latency
                     score_val += 1.0 / score.avg_latency
                     count += 1
                 if score.avg_tokens_per_sec is not None and score.avg_tokens_per_sec > 0:
-                    score_val += score.avg_tokens_per_sec / 100.0  # normalize
+                    score_val += min(score.avg_tokens_per_sec / 100.0, 1.0)
                     count += 1
-                if score.success_rate is not None and score.success_rate > 0:
-                    score_val += score.success_rate * 10.0  # normalize
+                if score.success_rate is not None:
+                    score_val += score.success_rate
                     count += 1
-                if count == 0:
-                    return 0.0
-                return score_val / count
+                if score.error_rate is not None:
+                    score_val += 1.0 - score.error_rate
+                    count += 1
+                return score_val / count if count else 0.0
 
-            selected_name = min(candidates, key=balanced_key)[0]
-            selected_info, selected_score = next(
-                (info, score) for name, info, score in candidates if name == selected_name
+            selected_name = max(candidates, key=balanced_key)[0]
+            selected_info = next(info for name, info, _score in candidates if name == selected_name)
+            score_table: dict[str, dict[str, float | None]] = {}
+            for name, info, score in candidates:
+                score_table[name] = {
+                    "blended": round(balanced_key((name, info, score)), 4),
+                    "avg_latency_s": score.avg_latency,
+                    "tokens_per_sec": score.avg_tokens_per_sec,
+                    "error_rate": score.error_rate,
+                    "success_rate": score.success_rate,
+                }
+
+            reasoning = (
+                f"Selected {selected_name} ({selected_info.family}) via balanced criteria: "
+                f"{score_table}"
             )
-            # Find models that dominate in at least one metric
-            dominant_notes = []
-            if any(s.avg_latency is not None for _, _, s in candidates):
-                dominant_notes.append("latency data available")
-            if any(s.avg_tokens_per_sec is not None for _, _, s in candidates):
-                dominant_notes.append("throughput data available")
-            if any(s.success_rate is not None for _, _, s in candidates):
-                dominant_notes.append("success rate data available")
-
-            # Build reasoning
-            reasoning_parts = [
-                "Selected " + selected_name + " (" + selected_info.family + " via balanced criteria"
-            ]
-            if dominant_notes:
-                reasoning_parts.append("data: " + ", ".join(dominant_notes))
-            else:
-                reasoning_parts.append("limited data available")
-            reasoning = " ".join(reasoning_parts)
-            metrics = {"selection_type": "balanced", "dominant_notes": dominant_notes}
+            metrics = {"selection_type": "balanced", "candidate_metrics": score_table}
         else:
             # Fallback: select the first candidate
             selected_name = candidates[0][0]
@@ -474,8 +472,12 @@ class ModelRouter:
             "agent": RoutingCriteria.BALANCED,
         }
 
-        # Use task-inferred criteria or default
-        selected_criteria = task_criteria_map.get(task_lower, criteria)
+        # Use task-inferred criteria (substring match) or the provided default
+        selected_criteria = criteria
+        for keyword, pref in task_criteria_map.items():
+            if keyword in task_lower:
+                selected_criteria = pref
+                break
 
         return self.route(criteria=selected_criteria, rejected=excluded_models)
 

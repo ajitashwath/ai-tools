@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI for backend (ruff + pytest) and UI (lint + build).
 - `LICENSE` (MIT), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue/PR templates.
 - `CHANGELOG.md` following Keep a Changelog.
+- **Real sandbox** (`aidev/executor.py` + `aidev/sandbox.py`): isolated repo
+  copy, real subprocess execution with timeout/capture, and a test-driven
+  repair loop that applies deterministic repair scripts and re-runs the test
+  suite. Every step is traced. Bundled `demo/sample_repo` demo fixture that the
+  sandbox actually fixes.
+- **Real replay**: `aidev replay <id>` re-executes a stored run inside a
+  sandbox when the span carries a repo path, linking the new run back to the
+  original and printing a comparison.
+- New CLI commands: `aidev diagnose`, `aidev optimize`, `aidev arena` now
+  analyze real traced data (previously these modules were not wired to the CLI
+  or the database).
+- `ModelArena` computes scores from real traced spans (`get_spans_by_model`);
+  `ModelRouter` auto-registers models from the DB, and routing works on
+  measured data.
+- `python -m aidev` works as a CLI alias (`aidev/__main__.py`).
+
+### Changed
+
+- The `trace()` SDK helper now persists to `traces.db` by default, matching the
+  documented quickstart.
+- `POST /api/spans` finalizes the span and pushes live updates to connected
+  WebSocket clients (`/ws`) instead of requiring polling.
+- Fixed `ModelRouter` balanced scoring picking the *worst* candidate
+  (`min` → `max`) and task-keyword inference requiring an exact match instead
+  of a substring.
+- `set_inputs()` added to the SDK span context for traced tool calls.
 
 ### Fixed
 

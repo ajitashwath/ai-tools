@@ -93,6 +93,9 @@ def test_tracer_end_finalizes_open_spans(tmp_path):
         store.close()
 
 
-def test_module_level_trace_helper():
+def test_module_level_trace_helper(tmp_path, monkeypatch):
+    # The convenience helper persists to traces.db in the current directory.
+    monkeypatch.chdir(tmp_path)
     with trace("quick") as ctx:
         assert isinstance(ctx._span, Span)
+    assert (tmp_path / "traces.db").exists()
